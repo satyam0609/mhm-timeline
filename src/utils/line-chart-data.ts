@@ -5,7 +5,7 @@ import * as d3 from "d3";
  * @param {string} key - e.g. "15m", "1h", "6h", "1d"
  * @returns {d3.TimeInterval}
  */
-function getD3Interval(key) {
+function getD3Interval(key: string) {
   const match = key.match(/^(\d+)([mhd])$/);
   if (!match)
     throw new Error("Invalid interval key format. Use like '15m', '1h', '1d'.");
@@ -34,7 +34,11 @@ function getD3Interval(key) {
  * @param {string} intervalKey - e.g. '15m', '1h', '6h', '1d'
  * @returns {Array<{ time: string, temperature: number, humidity: number, timestamp: number }>}
  */
-export function generateTimeSeriesData(startDate, endDate, intervalKey) {
+export function generateTimeSeriesData(
+  startDate: Date,
+  endDate: Date,
+  intervalKey: string
+) {
   const interval = getD3Interval(intervalKey);
   if (!interval) throw new Error(`Unsupported interval key: ${intervalKey}`);
 

@@ -1,9 +1,6 @@
 "use client";
 import DualAxisChart from "@/components/dualAsixLineChart";
 import ZoomableTimelineDebug from "@/components/timeline-debug";
-import ZoomableTimeline5 from "@/components/timeline4";
-import ZoomableTimeline6 from "@/components/timeline5";
-import ZoomableTimeline from "@/components/timeline6";
 import { Checkbox } from "@/components/ui/checkbox";
 import { COLORS } from "@/constants/color";
 import { generateTimeSeriesData } from "@/utils/line-chart-data";

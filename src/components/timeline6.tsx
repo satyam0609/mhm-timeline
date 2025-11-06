@@ -201,7 +201,7 @@ const ZoomableTimeline = ({
     return intervals.find((d) => d.key === "3M")!;
   };
 
-  const onScrollorZoomEnd = (range, currentInterval) => {
+  const onScrollorZoomEnd = (range: any, currentInterval: any) => {
     console.log(currentInterval, range, "----current interval level");
     throttledOnVisibleRangeChange(range);
     throttledOnZoom(currentInterval);
@@ -247,7 +247,7 @@ const ZoomableTimeline = ({
       g.selectAll("text").remove();
 
       // Add custom two-line text for intervals that need it
-      g.selectAll(".tick").each(function (d: any, i: number) {
+      g.selectAll(".tick").each(function (this: any, d: any, i: number) {
         const tick = d3.select(this);
         const shouldShow = (() => {
           //   if (["6h", "12h", "1d"].includes(currentInterval!.key)) {
@@ -468,7 +468,8 @@ const ZoomableTimeline = ({
       .attr("fill", "transparent")
       .attr("pointer-events", "all");
 
-    const initialIntervalConfig = intervals[timelineConfig.initialInterval];
+    const initialIntervalConfig =
+      intervals[timelineConfig.initialInterval as any];
     const targetPxPerInterval = 90;
     const targetPxPerMin = targetPxPerInterval / initialIntervalConfig.minutes;
     const initialZoomLevel = targetPxPerMin / basePxPerMin;
