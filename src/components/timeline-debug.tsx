@@ -130,10 +130,10 @@ const ZoomableTimelineDebug = ({
   startDate = new Date(),
   endDate = new Date(),
 }: ZoomableTimelineProps) => {
-  const svgRef = useRef<SVGSVGElement | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<any>(null);
-  const timelineRef = useRef<HTMLDivElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { width } = useResizeObserver(containerRef);
   const [colorBlocks, setColorBlocks] = useState<any[]>([]);
   const [zoomInfo, setZoomInfo] = useState({
@@ -151,7 +151,7 @@ const ZoomableTimelineDebug = ({
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartPivot, setDragStartPivot] = useState(0);
 
-  const xScaleRef = useRef<d3.ScaleTime<number, number> | null>(null);
+  const xScaleRef = useRef<any>(null);
   const pivotPositionRef = useRef<number>(0);
   const precisePivotRef = useRef<number>(0);
 
@@ -169,6 +169,8 @@ const ZoomableTimelineDebug = ({
   const marginLeft = 33;
   const marginRight = 33;
   const timelineHeight = 48;
+  //   const { data, sendToReactNative } = useReactNativeBridge();
+  // const { startDate, endDate } = data ;
 
   // ===============to store the gap between the tick===============
   const tickGapRef = useRef<number>(0);
@@ -197,6 +199,7 @@ const ZoomableTimelineDebug = ({
   };
 
   const onScrollorZoomEnd = (range: any, currentInterval: any) => {
+    console.log(currentInterval, range, "----current interval level");
     throttledOnVisibleRangeChange(range);
     throttledOnZoom(currentInterval);
   };
@@ -209,56 +212,42 @@ const ZoomableTimelineDebug = ({
     const basePxPerMs = fullWidthPx / fullSpanMs;
     const basePxPerMin = basePxPerMs * 60 * 1000;
 
-    const svg = d3.select<SVGSVGElement, unknown>(svgRef.current);
+    const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const x: d3.ScaleTime<number, number> = d3
+    const x = d3
       .scaleTime()
       .domain([startDate, endDate])
       .range([marginLeft, width - marginRight]);
 
-    const xAxis = (
-      g: d3.Selection<SVGGElement, unknown, null, undefined>,
-      scale: d3.ScaleTime<number, number>
-    ) => {
-      const domain = scale.domain();
-      const range = scale.range();
-      const spanMs = domain[1].getTime() - domain[0].getTime();
+    const xAxis = (g: any, x: any) => {
+      const domain = x.domain();
+      const range = x.range();
+      const spanMs = domain[1] - domain[0];
       const pixelWidth = range[1] - range[0];
 
       const pxPerMin = pixelWidth / (spanMs / (1000 * 60));
       const { interval, format } = getInterval(pxPerMin);
-      const tickValues = scale.ticks(interval);
+      const tickValues = x.ticks(interval);
       const currentInterval = getInterval(pxPerMin);
 
       const axis = d3
-        .axisBottom(scale)
+        .axisBottom(x)
         .tickValues(tickValues)
         .tickSizeOuter(0)
         .tickFormat(format as any);
 
-      // call axis on the provided group
-      g.call(axis as any);
+      g.call(axis);
 
       // Remove default text elements
       g.selectAll("text").remove();
 
-      // full range ticks (typed)
-      const fullRangeTicks =
-        (interval.range(startDate, endDate) as Date[]) || [];
+      const fullRangeTicks = interval.range(startDate, endDate);
 
       // Add custom two-line text for intervals that need it
-      (
-        g.selectAll<SVGGElement, Date>(".tick") as d3.Selection<
-          SVGGElement,
-          Date,
-          SVGGElement,
-          unknown
-        >
-      ).each(function (this: SVGGElement, d: Date, i: number) {
-        const tick = d3.select<SVGGElement, Date>(this);
-        // If a previous custom label exists, it will be selected (optional)
-        const existingText = tick.select<SVGTextElement>("text.tick-label");
+      g.selectAll(".tick").each(function (this: any, d: any, i: number) {
+        const tick = d3.select(this);
+        const existingText = tick.select("text.tick-label");
 
         // Find the global index of this tick in the full range
         const tickDate = new Date(d);
@@ -284,7 +273,6 @@ const ZoomableTimelineDebug = ({
         const text = tick
           .append("text")
           .attr("y", -10)
-          .attr("class", "tick-label")
           .style("text-anchor", "middle")
           .style("font-size", "12px")
           .style("fill", COLORS.black);
@@ -295,16 +283,26 @@ const ZoomableTimelineDebug = ({
           const datePart = d3.timeFormat("%m/%d")(date);
           const timePart = d3.timeFormat("%I:%M %p")(date);
 
-          text.append("tspan").attr("x", 0).attr("dy", "-0.5em").text(datePart);
-          text.append("tspan").attr("x", 0).attr("dy", "1.1em").text(timePart);
+          text
+            .append("tspan")
+            .attr("x", 0)
+            .attr("dy", "-0.5em") //add space between the tick an label
+            .text(datePart);
+
+          text
+            .append("tspan")
+            .attr("x", 0)
+            .attr("dy", "1.1em") // Move to next line
+            .text(timePart);
         } else {
+          // Single line for other intervals
           text.text(format(new Date(d)) as string);
         }
       });
     };
 
     const zoom = d3
-      .zoom<SVGSVGElement, unknown>()
+      .zoom()
       .scaleExtent([1, 50])
       .on("start", () => {
         setIsZooming(true);
@@ -327,12 +325,14 @@ const ZoomableTimelineDebug = ({
         // --- compute visible range ---
         const [visibleStart, visibleEnd] = xz.domain();
         const range = { start: visibleStart, end: visibleEnd };
-        // Generate all ticks in the full range (typed)
-        const fullRangeTicks =
-          (currentInterval.interval.range(startDate, endDate) as Date[]) || [];
+        // Generate all ticks in the full range
+        const fullRangeTicks = currentInterval.interval.range(
+          startDate,
+          endDate
+        );
 
         // Get visible ticks
-        const visibleTicks = xz.ticks(currentInterval.interval) as Date[];
+        const visibleTicks = xz.ticks(currentInterval.interval);
 
         // Find the first visible tick
         const firstVisibleTick = visibleTicks[0];
@@ -357,6 +357,14 @@ const ZoomableTimelineDebug = ({
                 return true;
             }
           })();
+
+          console.log("First visible tick:", {
+            date: firstVisibleTick,
+            globalIndex: globalIndex,
+            isShowing: isFirstTickShowing,
+            intervalVariant: timelineConfig.intervalVariant,
+            tickGap: tickGapRef.current,
+          });
         }
 
         setVisibleRange(range);
@@ -371,22 +379,15 @@ const ZoomableTimelineDebug = ({
     const gx = svg
       .append("g")
       .attr("class", "axis")
-      .attr("transform", `translate(0,${marginTop})`);
-    // call xAxis with typed selection
-    (gx as d3.Selection<SVGGElement, unknown, null, undefined>).call(
-      xAxis as any,
-      x
-    );
+      .attr("transform", `translate(0,${marginTop})`)
+      .call(xAxis, x);
 
     gx.select(".domain").remove();
 
-    function zoomed(event: d3.D3ZoomEvent<SVGSVGElement, unknown>) {
+    function zoomed(event: any) {
       const xz = event.transform.rescaleX(x);
       xScaleRef.current = xz;
-      (gx as d3.Selection<SVGGElement, unknown, null, undefined>).call(
-        xAxis as any,
-        xz
-      );
+      gx.call(xAxis, xz);
       gx.select(".domain").remove();
 
       const currentZoom = event.transform.k;
@@ -396,15 +397,13 @@ const ZoomableTimelineDebug = ({
       setVisibleRange({ start: visibleStart, end: visibleEnd });
 
       // --- compute gap between each tick label ---
-      const tickValues = xz.ticks(
-        getInterval(currentPxPerMin).interval
-      ) as Date[];
+      const tickValues = xz.ticks(getInterval(currentPxPerMin).interval);
       const firstTickX = xz(tickValues[0]);
       const lastTickX = xz(tickValues[tickValues.length - 1]);
       const leftGap = firstTickX - marginLeft;
       const rightGap = width - marginRight - lastTickX;
       OnEndGapChange({ left: leftGap, right: rightGap });
-
+      console.log("Left gap:", leftGap, "Right gap:", rightGap);
       if (tickValues.length >= 2) {
         const gapPx = Math.abs(xz(tickValues[1]) - xz(tickValues[0]));
         tickGapRef.current = gapPx;
@@ -487,18 +486,46 @@ const ZoomableTimelineDebug = ({
     pivotPositionRef.current = initialPivotX;
     precisePivotRef.current = initialPivotX;
     svg.call(zoom as any); // attach zoom behavior
+    console.log(
+      x(startDate) - marginLeft,
+      startDate,
+      "--------------starting date pos"
+    );
+
+    //Initial rendering
+
+    // svg
+    //   .call(zoom as any)
+    //   .transition()
+    //   .duration(750)
+    //   .call(zoom.scaleTo as any, initialZoomLevel, [
+    //     x(centerDate) - marginLeft,
+    //     0,
+    //   ])
+    //   .on("end", () => {
+    //     if (!svg.node()) return;
+
+    //     const transform = d3.zoomTransform(svg.node()!);
+    //     const currentScale = transform.rescaleX(x);
+
+    //     xScaleRef.current = currentScale;
+    //     updatePivotDateFromScale(pivotPositionRef.current);
+    //   });
+
+    svg.call(zoom as any);
 
     const applyInitialZoom = () => {
       const zoomTarget = [x(centerDate) - marginLeft, 0];
+
       if (timelineConfig.animateInitialRender) {
         svg
           .transition()
           .duration(800)
           .ease(d3.easeCubicOut)
-          .call((zoom as any).scaleTo, initialZoomLevel, zoomTarget)
+          .call(zoom.scaleTo as any, initialZoomLevel, zoomTarget)
           .on("end", finalizeInitialZoom);
       } else {
-        (zoom as any).scaleTo(svg as any, initialZoomLevel, zoomTarget);
+        svg.call(zoom.scaleTo as any, initialZoomLevel, zoomTarget);
         finalizeInitialZoom();
       }
     };
@@ -511,16 +538,21 @@ const ZoomableTimelineDebug = ({
       updatePivotDateFromScale(pivotPositionRef.current);
     };
 
+    // Trigger initial zoom after a short delay (ensures layout settled)
     requestAnimationFrame(applyInitialZoom);
 
     function updateTimeline(scale: any) {
       if (!timelineRef.current) return;
+
       timelineRef.current.innerHTML = "";
+
       colorBlocks.forEach((block) => {
         const startPos = scale(block.start);
         const endPos = scale(block.end);
+
         const leftPos = startPos - marginLeft;
         const blockWidth = endPos - startPos;
+
         if (endPos >= marginLeft && startPos <= width - marginRight) {
           const div = document.createElement("div");
           div.style.position = "absolute";
@@ -528,6 +560,7 @@ const ZoomableTimelineDebug = ({
           div.style.width = `${blockWidth}px`;
           div.style.height = "100%";
           div.style.backgroundColor = block.color;
+          //   div.style.borderRight = "1px solid white";
           div.style.boxSizing = "border-box";
           timelineRef.current!.appendChild(div);
         }
@@ -542,8 +575,40 @@ const ZoomableTimelineDebug = ({
       const svgX = position + marginLeft;
       const date = xScaleRef.current.invert(svgX);
       setPivotDate(date);
+      console.log(
+        "Precise pivot position:",
+        position,
+        "Date:",
+        date.toISOString()
+      );
     }
   }
+
+  // const handlePivotMouseDown = (e: React.MouseEvent) => {
+  //   e.preventDefault();
+  //   setIsDragging(true);
+  //   setDragStartX(e.clientX);
+  //   setDragStartPivot(precisePivotRef.current);
+  // };
+
+  // const handleMouseMove = (e: React.MouseEvent) => {
+  //   if (!isDragging || !containerRef.current) return;
+
+  //   const deltaX = e.clientX - dragStartX;
+  //   const maxX = width - marginLeft - marginRight;
+
+  //   const newPosition = Math.max(0, Math.min(dragStartPivot + deltaX, maxX));
+
+  //   console.log(newPosition, "-----new position (with sub-pixel precision)");
+
+  //   setPivotPosition(newPosition);
+  //   precisePivotRef.current = newPosition;
+  //   updatePivotDateFromScale(newPosition);
+  // };
+
+  // const handleMouseUp = () => {
+  //   setIsDragging(false);
+  // };
 
   const handlePivotStart = (clientX: number) => {
     setIsDragging(true);
@@ -553,9 +618,11 @@ const ZoomableTimelineDebug = ({
 
   const handlePivotMove = (clientX: number) => {
     if (!isDragging || !containerRef.current) return;
+
     const deltaX = clientX - dragStartX;
     const maxX = width - marginLeft - marginRight;
     const newPosition = Math.max(0, Math.min(dragStartPivot + deltaX, maxX));
+
     setPivotPosition(newPosition);
     pivotPositionRef.current = newPosition;
     precisePivotRef.current = newPosition;
@@ -567,25 +634,76 @@ const ZoomableTimelineDebug = ({
   };
 
   const formatPivotDate = (date: Date) => {
+    // return d3.timeFormat("%m/%d/%Y, %I:%M:%S %p")(date);
     return d3.timeFormat("%m/%d/%Y, %I:%M %p")(date);
   };
 
   const scrollTimeline = (direction: "left" | "right", px: number) => {
+    // Safety: we need the svg element, the current zoom behavior, and the zoom transform to exist.
     if (!svgRef.current || !zoomRef.current) return;
+
+    // Use d3 to select the svg node (we will call the zoom's translateBy via d3.call)
     const svg = d3.select(svgRef.current);
+
+    // dx is positive to move content right (visible window shifts left),
+    // and negative to move content left (visible window shifts right).
+    // When user clicks "left" arrow we want to move the visible window earlier in time,
+    // so we translate by (+px). For "right" arrow we translate by (-px).
     const dx = direction === "left" ? px : -px;
+
+    // Use the built-in translateBy operation on the zoom behavior.
+    // This will:
+    //  - compute a new transform (current transform + dx)
+    //  - apply scale (no change in k)
+    //  - respect translateExtent and scaleExtent automatically
+    //  - update internal zoom state so subsequent zoom events remain consistent
     svg
-      .transition()
+      .transition() // animate the pan so it feels smooth
       .duration(300)
+      // call the zoom behavior's translateBy (note: zoomRef.current is the zoom behavior)
       .call((zoomRef.current as any).translateBy as any, dx, 0);
   };
 
   return (
     <div className="flex flex-col items-center overflow-hidden pt-12">
-      {/* UI unchanged */}
+      <div className="mb-4 p-4 bg-gray-100 rounded-lg shadow-sm text-sm font-mono w-full hidden">
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <div className="text-blue-600 font-bold text-lg mb-1">
+              {zoomInfo.current}
+            </div>
+            <div className="text-gray-600 text-xs">
+              Zoom: {zoomInfo.zoomLevel}x | {zoomInfo.currentPxPerMin} px/min
+            </div>
+          </div>
+          <div className="text-green-600">
+            <div className="font-semibold">⬅ Zoom In to:</div>
+            <div className="text-xs">{zoomInfo.zoomIn}</div>
+          </div>
+          <div className="text-orange-600">
+            <div className="font-semibold">Zoom Out to: ➡</div>
+            <div className="text-xs">{zoomInfo.zoomOut}</div>
+          </div>
+        </div>
+        <div className="mt-3 pt-3 border-t border-gray-300">
+          <div className="text-purple-600 font-semibold">
+            Pivot Position: {precisePivotRef.current.toFixed(4)}px
+          </div>
+          <div className="text-purple-600 font-semibold">Gap: {tickGap}px</div>
+        </div>
+        <div className="mt-3 pt-3 border-t border-gray-300">
+          <div className="text-purple-600 font-semibold">
+            Start: {d3.timeFormat("%m/%d/%Y, %I:%M:%S %p")(visibleRange.start)}
+          </div>
+          <div className="text-purple-600 font-semibold">
+            End: {d3.timeFormat("%m/%d/%Y, %I:%M:%S %p")(visibleRange.end)}
+          </div>
+        </div>
+      </div>
+
       <div className="relative w-full flex items-center px-6">
         <button
-          className="h-12 w-6 border rounded-l-md bg-white absolute top-12 left-5 z-9999 flex justify-center items-center"
+          className="h-12 w-6 border border-midnightBlue rounded-l-md bg-white hover:bg-neutral-400 absolute top-12 left-5 z-9999 flex justify-center items-center"
           onClick={() => scrollTimeline("left", 100)}
         >
           <LeftIcon />
@@ -593,9 +711,12 @@ const ZoomableTimelineDebug = ({
         <div
           className="bg-white w-full relative"
           ref={containerRef}
+          // onMouseMove={handleMouseMove}
+          // onMouseUp={handleMouseUp}
+          // onMouseLeave={handleMouseUp}
           onMouseMove={(e) => handlePivotMove(e.clientX)}
           onTouchMove={(e) => handlePivotMove(e.touches[0].clientX)}
-          onMouseLeave={() => handlePivotEnd()}
+          onMouseLeave={(e) => handlePivotEnd()}
           style={{ cursor: isDragging ? "grabbing" : "default" }}
         >
           <svg
@@ -603,19 +724,27 @@ const ZoomableTimelineDebug = ({
             viewBox={`0 0 ${width} ${height}`}
             width={width}
             height={height}
-            style={{ maxWidth: "100%", height: "auto", display: "block" }}
+            style={{
+              maxWidth: "100%",
+              height: "auto",
+              display: "block",
+            }}
           />
+
           <div
             className="absolute top-12 bg-amber-200 h-4"
             style={{
               width: `${width - marginLeft - marginRight}px`,
               height: `${timelineHeight}px`,
               marginLeft: `${marginLeft}px`,
+              //   marginTop: "10px",
+
               overflow: "hidden",
               pointerEvents: "none",
             }}
             ref={timelineRef}
           />
+
           <div
             className="absolute"
             style={{
@@ -629,7 +758,36 @@ const ZoomableTimelineDebug = ({
             }}
           >
             <div className="absolute top-3 bottom-0 w-full bg-ashBrown h-[90%]" />
+
+            <div
+              className="absolute"
+              style={{
+                top: "-1px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "0",
+                height: "0",
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderTop: `8px solid ${COLORS.ashBrown}`,
+              }}
+            />
+
+            <div
+              className="absolute"
+              style={{
+                bottom: "-1px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "0",
+                height: "0",
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderBottom: `8px solid ${COLORS.ashBrown}`,
+              }}
+            />
           </div>
+
           <div
             className="absolute bg-lavenderMist border-2 border-darkViolet rounded-full shadow-lg px-3 py-1"
             style={{
@@ -641,6 +799,7 @@ const ZoomableTimelineDebug = ({
               userSelect: "none",
               cursor: isDragging ? "grabbing" : "grab",
             }}
+            // onMouseDown={handlePivotMouseDown}
             onMouseDown={(e) => handlePivotStart(e.clientX)}
             onTouchStart={(e) => handlePivotStart(e.touches[0].clientX)}
           >
@@ -651,14 +810,17 @@ const ZoomableTimelineDebug = ({
               <button
                 onClick={(e) => {
                   e.preventDefault();
+                  console.log("calendar clicked");
                   onCalendarClick();
                 }}
+                className=""
               >
                 <CalendarIcon />
               </button>
               <button
                 onClick={(e) => {
                   e.preventDefault();
+                  console.log("calendar clicked");
                   onReloadClick();
                 }}
                 className="p-1"
@@ -667,12 +829,13 @@ const ZoomableTimelineDebug = ({
               </button>
             </div>
           </div>
+          {/* place for image*/}
           <div className="h-32 w-full px-8.5 relative">
             <div className="bg-yellow-200 h-full w-full"></div>
           </div>
         </div>
         <button
-          className="h-12 w-6 border rounded-r-md bg-white absolute top-12 right-5 flex justify-center items-center"
+          className="h-12 w-6 border border-midnightBlue rounded-r-md bg-white hover:bg-neutral-400 absolute top-12 right-5 flex justify-center items-center"
           onClick={() => scrollTimeline("right", 100)}
         >
           <RightIcon />

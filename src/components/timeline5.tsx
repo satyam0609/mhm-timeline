@@ -2,7 +2,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
-import { useReactNativeBridge } from "@/hooks/useReactNativeBridge";
+import { COLORS } from "@/constants/color";
+import LeftIcon from "@/assets/svg/leftIcon";
+import RightIcon from "@/assets/svg/rightIcon";
+import CalendarIcon from "@/assets/svg/calendarIcon";
+import { RotateCw } from "lucide-react";
+import throttle from "lodash.throttle";
 
 type IntervalConfig = {
   key: string;
@@ -87,22 +92,48 @@ const intervals: IntervalConfig[] = [
 ];
 
 interface timelineConfigProp {
-  initialInterval: number;
-  scrollTo: "end" | "middle" | "start";
+  initialInterval?: number;
+  scrollTo?: "end" | "middle" | "start";
+  needTwoLineLabel?: boolean;
+  intervalVariant?: "adjust" | "all" | "even";
+  animateInitialRender?: boolean;
 }
 
 interface ZoomableTimelineProps {
   timelineConfig?: timelineConfigProp;
+  onZoom?: (data: any) => void;
+  onGapChange?: (gap: number) => void;
+  OnEndGapChange?: ({ left, right }: { left: number; right: number }) => void;
+  onVisibleRangeChange?: (range: { start: Date; end: Date }) => void;
+  onCalendarClick?: () => void;
+  onReloadClick?: () => void;
+  startDate?: Date;
+  endDate?: Date;
+  data?: any[];
 }
 
-const ZoomableTimeline6 = ({
-  timelineConfig = { initialInterval: 7, scrollTo: "start" },
+const ZoomableTimelineDebug = ({
+  timelineConfig = {
+    initialInterval: 4,
+    scrollTo: "start",
+    needTwoLineLabel: true,
+    intervalVariant: "even",
+    animateInitialRender: true,
+  },
+  onZoom = () => {},
+  onGapChange = () => {},
+  OnEndGapChange = () => {},
+  onVisibleRangeChange = () => {},
+  onCalendarClick = () => {},
+  onReloadClick = () => {},
+  data = [],
+  startDate = new Date(),
+  endDate = new Date(),
 }: ZoomableTimelineProps) => {
-  let intervalVariant = "adjust";
-  const svgRef = useRef<SVGSVGElement>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const zoomRef = useRef<any>(null);
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const { width } = useResizeObserver(containerRef);
   const [colorBlocks, setColorBlocks] = useState<any[]>([]);
   const [zoomInfo, setZoomInfo] = useState({
@@ -112,34 +143,34 @@ const ZoomableTimeline6 = ({
     zoomIn: "",
     zoomOut: "",
   });
+  const [isZooming, setIsZooming] = useState(false);
+
   const [pivotPosition, setPivotPosition] = useState(0);
   const [pivotDate, setPivotDate] = useState(new Date());
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartPivot, setDragStartPivot] = useState(0);
 
-  const xScaleRef = useRef<any>(null);
+  const xScaleRef = useRef<d3.ScaleTime<number, number> | null>(null);
   const pivotPositionRef = useRef<number>(0);
   const precisePivotRef = useRef<number>(0);
 
-  useEffect(() => {
-    pivotPositionRef.current = pivotPosition;
-    precisePivotRef.current = pivotPosition;
-  }, [pivotPosition]);
+  //trottle functions
+  const throttledOnZoom = useRef(throttle(onZoom, 200)).current;
+  const throttledOnVisibleRangeChange = useRef(
+    throttle(onVisibleRangeChange, 200)
+  ).current;
 
+  //use this height to accomodate upto where the zoom should work
   const height = 120;
-  const marginRight = 30;
-  const marginTop = 20;
-  const marginLeft = 30;
-  const timelineHeight = 28;
-  const { data, sendToReactNative } = useReactNativeBridge();
-  // const { startDate, endDate } = data ;
 
-  const { startDate, endDate } = {
-    startDate: new Date(Date.UTC(2025, 6, 1, 0, 0, 0)),
-    endDate: new Date(Date.UTC(2025, 6, 5, 0, 0, 0)),
-  };
+  //use this margin top to set the position of ticks and label
+  const marginTop = 30;
+  const marginLeft = 33;
+  const marginRight = 33;
+  const timelineHeight = 48;
 
+  // ===============to store the gap between the tick===============
   const tickGapRef = useRef<number>(0);
   const [tickGap, setTickGap] = useState<number>(0); // gap between ticks in px
   const [visibleRange, setVisibleRange] = useState<{ start: Date; end: Date }>({
@@ -147,46 +178,9 @@ const ZoomableTimeline6 = ({
     end: endDate,
   });
 
-  const generateColorBlocks = () => {
-    const blocks = [];
-    const colors = [
-      "#FF6B6B",
-      "#4ECDC4",
-      "#45B7D1",
-      "#FFA07A",
-      "#98D8C8",
-      "#F7DC6F",
-      "#BB8FCE",
-      "#85C1E2",
-    ];
-    const current = new Date(startDate);
-
-    while (current < endDate) {
-      const duration = Math.random() * 3600000 * 4;
-      const blockEnd = new Date(
-        Math.min(current.getTime() + duration, endDate.getTime())
-      );
-
-      blocks.push({
-        start: new Date(current),
-        end: blockEnd,
-        color: colors[Math.floor(Math.random() * colors.length)],
-      });
-
-      current.setTime(blockEnd.getTime());
-    }
-
-    return blocks;
-  };
-
   useEffect(() => {
-    setColorBlocks(generateColorBlocks());
-  }, []);
-
-  useEffect(() => {
-    sendToReactNative && sendToReactNative("tickGap", tickGap);
-    sendToReactNative && sendToReactNative("visibleRange", visibleRange);
-  }, [tickGap, visibleRange]);
+    setColorBlocks(data);
+  }, [data]);
 
   const getInterval = (pxPerMin: number): IntervalConfig => {
     if (pxPerMin > 10) return intervals.find((d) => d.key === "5m")!;
@@ -202,6 +196,11 @@ const ZoomableTimeline6 = ({
     return intervals.find((d) => d.key === "3M")!;
   };
 
+  const onScrollorZoomEnd = (range: any, currentInterval: any) => {
+    throttledOnVisibleRangeChange(range);
+    throttledOnZoom(currentInterval);
+  };
+
   useEffect(() => {
     if (!svgRef.current || colorBlocks.length === 0 || width === 0) return;
 
@@ -210,64 +209,106 @@ const ZoomableTimeline6 = ({
     const basePxPerMs = fullWidthPx / fullSpanMs;
     const basePxPerMin = basePxPerMs * 60 * 1000;
 
-    const svg = d3.select(svgRef.current);
+    const svg = d3.select<SVGSVGElement, unknown>(svgRef.current);
     svg.selectAll("*").remove();
 
-    const x = d3
-      // .scaleUtc()
+    const x: d3.ScaleTime<number, number> = d3
       .scaleTime()
       .domain([startDate, endDate])
       .range([marginLeft, width - marginRight]);
 
-    const xAxis = (g: any, x: any) => {
-      const domain = x.domain();
-      const range = x.range();
-      const spanMs = domain[1] - domain[0];
+    const xAxis = (
+      g: d3.Selection<SVGGElement, unknown, null, undefined>,
+      scale: d3.ScaleTime<number, number>
+    ) => {
+      const domain = scale.domain();
+      const range = scale.range();
+      const spanMs = domain[1].getTime() - domain[0].getTime();
       const pixelWidth = range[1] - range[0];
 
       const pxPerMin = pixelWidth / (spanMs / (1000 * 60));
       const { interval, format } = getInterval(pxPerMin);
-      const tickValues = x.ticks(interval);
-      console.log(tickValues, "---------ticks");
+      const tickValues = scale.ticks(interval);
       const currentInterval = getInterval(pxPerMin);
 
       const axis = d3
-        .axisBottom(x)
+        .axisBottom(scale)
         .tickValues(tickValues)
         .tickSizeOuter(0)
         .tickFormat(format as any);
 
-      g.call(axis);
+      // call axis on the provided group
+      g.call(axis as any);
 
-      g.selectAll("text")
-        .attr("y", -10)
-        .style("text-anchor", "middle")
-        .style("display", (d: any, i: number) => {
-          if ([""].includes(currentInterval!.key)) {
-            switch (intervalVariant) {
-              case "even":
-                return i % 2 === 0 ? "block" : "none";
-              case "odd":
-                return i % 2 !== 0 ? "block" : "none";
-              case "adjust": {
-                console.log(tickGap, "--------------ticgap");
-                if (tickGapRef.current < 50) {
-                  return i % 2 === 0 ? "block" : "none";
-                } else {
-                  return "block";
-                }
-              }
-              default:
-                return "block";
-            }
+      // Remove default text elements
+      g.selectAll("text").remove();
+
+      // full range ticks (typed)
+      const fullRangeTicks =
+        (interval.range(startDate, endDate) as Date[]) || [];
+
+      // Add custom two-line text for intervals that need it
+      (
+        g.selectAll<SVGGElement, Date>(".tick") as d3.Selection<
+          SVGGElement,
+          Date,
+          SVGGElement,
+          unknown
+        >
+      ).each(function (this: SVGGElement, d: Date, i: number) {
+        const tick = d3.select<SVGGElement, Date>(this);
+        // If a previous custom label exists, it will be selected (optional)
+        const existingText = tick.select<SVGTextElement>("text.tick-label");
+
+        // Find the global index of this tick in the full range
+        const tickDate = new Date(d);
+        const globalIndex = fullRangeTicks.findIndex(
+          (t) => t.getTime() === tickDate.getTime()
+        );
+
+        const shouldShow = (() => {
+          switch (timelineConfig.intervalVariant) {
+            case "all":
+              return true;
+            case "even":
+              return globalIndex % 2 === 0;
+            case "adjust":
+              return tickGapRef.current < 80 ? globalIndex % 2 === 0 : true;
+            default:
+              return true;
           }
-          return "block";
-        });
+        })();
+
+        if (!shouldShow) return;
+
+        const text = tick
+          .append("text")
+          .attr("y", -10)
+          .attr("class", "tick-label")
+          .style("text-anchor", "middle")
+          .style("font-size", "12px")
+          .style("fill", COLORS.black);
+
+        // Check if we need two lines (for 6h, 12h, 1d intervals)
+        if (timelineConfig.needTwoLineLabel) {
+          const date = new Date(d);
+          const datePart = d3.timeFormat("%m/%d")(date);
+          const timePart = d3.timeFormat("%I:%M %p")(date);
+
+          text.append("tspan").attr("x", 0).attr("dy", "-0.5em").text(datePart);
+          text.append("tspan").attr("x", 0).attr("dy", "1.1em").text(timePart);
+        } else {
+          text.text(format(new Date(d)) as string);
+        }
+      });
     };
 
     const zoom = d3
-      .zoom()
+      .zoom<SVGSVGElement, unknown>()
       .scaleExtent([1, 50])
+      .on("start", () => {
+        setIsZooming(true);
+      })
       .extent([
         [marginLeft, 0],
         [width - marginRight, height],
@@ -276,22 +317,76 @@ const ZoomableTimeline6 = ({
         [marginLeft, -Infinity],
         [width - marginRight, Infinity],
       ])
-      .on("zoom", zoomed);
+      .on("zoom", zoomed)
+      .on("end", (event: any) => {
+        setIsZooming(false);
+        const xz = event.transform.rescaleX(x);
+        const currentZoom = event.transform.k;
+        const currentPxPerMin = basePxPerMin * currentZoom;
+        const currentInterval = getInterval(currentPxPerMin);
+        // --- compute visible range ---
+        const [visibleStart, visibleEnd] = xz.domain();
+        const range = { start: visibleStart, end: visibleEnd };
+        // Generate all ticks in the full range (typed)
+        const fullRangeTicks =
+          (currentInterval.interval.range(startDate, endDate) as Date[]) || [];
+
+        // Get visible ticks
+        const visibleTicks = xz.ticks(currentInterval.interval) as Date[];
+
+        // Find the first visible tick
+        const firstVisibleTick = visibleTicks[0];
+        let isFirstTickShowing = true;
+
+        if (firstVisibleTick) {
+          // Find its global index in the full range
+          const globalIndex = fullRangeTicks.findIndex(
+            (t) => t.getTime() === firstVisibleTick.getTime()
+          );
+
+          // Check if this tick should be showing based on the variant setting
+          isFirstTickShowing = (() => {
+            switch (timelineConfig.intervalVariant) {
+              case "all":
+                return true;
+              case "even":
+                return globalIndex % 2 === 0;
+              case "adjust":
+                return tickGapRef.current < 80 ? globalIndex % 2 === 0 : true;
+              default:
+                return true;
+            }
+          })();
+        }
+
+        setVisibleRange(range);
+        onScrollorZoomEnd(range, {
+          currentInterval: currentInterval.key,
+          firstShow: isFirstTickShowing,
+        });
+      });
 
     zoomRef.current = zoom;
 
     const gx = svg
       .append("g")
       .attr("class", "axis")
-      .attr("transform", `translate(0,${marginTop})`)
-      .call(xAxis, x);
+      .attr("transform", `translate(0,${marginTop})`);
+    // call xAxis with typed selection
+    (gx as d3.Selection<SVGGElement, unknown, null, undefined>).call(
+      xAxis as any,
+      x
+    );
 
     gx.select(".domain").remove();
 
-    function zoomed(event: any) {
+    function zoomed(event: d3.D3ZoomEvent<SVGSVGElement, unknown>) {
       const xz = event.transform.rescaleX(x);
       xScaleRef.current = xz;
-      gx.call(xAxis, xz);
+      (gx as d3.Selection<SVGGElement, unknown, null, undefined>).call(
+        xAxis as any,
+        xz
+      );
       gx.select(".domain").remove();
 
       const currentZoom = event.transform.k;
@@ -301,11 +396,20 @@ const ZoomableTimeline6 = ({
       setVisibleRange({ start: visibleStart, end: visibleEnd });
 
       // --- compute gap between each tick label ---
-      const tickValues = xz.ticks(getInterval(currentPxPerMin).interval);
+      const tickValues = xz.ticks(
+        getInterval(currentPxPerMin).interval
+      ) as Date[];
+      const firstTickX = xz(tickValues[0]);
+      const lastTickX = xz(tickValues[tickValues.length - 1]);
+      const leftGap = firstTickX - marginLeft;
+      const rightGap = width - marginRight - lastTickX;
+      OnEndGapChange({ left: leftGap, right: rightGap });
+
       if (tickValues.length >= 2) {
         const gapPx = Math.abs(xz(tickValues[1]) - xz(tickValues[0]));
         tickGapRef.current = gapPx;
         setTickGap(gapPx);
+        onGapChange(gapPx);
       }
 
       const currentInterval = getInterval(currentPxPerMin);
@@ -357,7 +461,8 @@ const ZoomableTimeline6 = ({
       .attr("fill", "transparent")
       .attr("pointer-events", "all");
 
-    const initialIntervalConfig = intervals[timelineConfig.initialInterval];
+    const initialIntervalConfig =
+      intervals[timelineConfig.initialInterval as number];
     const targetPxPerInterval = 90;
     const targetPxPerMin = targetPxPerInterval / initialIntervalConfig.minutes;
     const initialZoomLevel = targetPxPerMin / basePxPerMin;
@@ -379,41 +484,43 @@ const ZoomableTimeline6 = ({
     xScaleRef.current = x;
     const initialPivotX = (width - marginLeft - marginRight) / 2;
     setPivotPosition(initialPivotX);
-
+    pivotPositionRef.current = initialPivotX;
+    precisePivotRef.current = initialPivotX;
     svg.call(zoom as any); // attach zoom behavior
 
-    // Immediately set the initial zoom
-    // const initialTransform = d3.zoomIdentity
-    //   .translate((width - marginLeft - marginRight) / 2 - x(centerDate), 0) // center the pivot
-    //   .scale(initialZoomLevel);
+    const applyInitialZoom = () => {
+      const zoomTarget = [x(centerDate) - marginLeft, 0];
+      if (timelineConfig.animateInitialRender) {
+        svg
+          .transition()
+          .duration(800)
+          .ease(d3.easeCubicOut)
+          .call((zoom as any).scaleTo, initialZoomLevel, zoomTarget)
+          .on("end", finalizeInitialZoom);
+      } else {
+        (zoom as any).scaleTo(svg as any, initialZoomLevel, zoomTarget);
+        finalizeInitialZoom();
+      }
+    };
 
-    // svg.call(zoom.transform as any, initialTransform);
+    const finalizeInitialZoom = () => {
+      if (!svg.node()) return;
+      const transform = d3.zoomTransform(svg.node()!);
+      const currentScale = transform.rescaleX(x);
+      xScaleRef.current = currentScale;
+      updatePivotDateFromScale(pivotPositionRef.current);
+    };
 
-    //------------------zoom with animation-------------------------//
-
-    svg
-      .call(zoom as any)
-      .transition()
-      .duration(750)
-      .call(zoom.scaleTo as any, initialZoomLevel, [x(centerDate), 0])
-      .on("end", () => {
-        const currentScale = d3.zoomTransform(svg.node()!).rescaleX(x);
-        xScaleRef.current = currentScale;
-        updatePivotDateFromScale(pivotPositionRef.current);
-      });
+    requestAnimationFrame(applyInitialZoom);
 
     function updateTimeline(scale: any) {
       if (!timelineRef.current) return;
-
       timelineRef.current.innerHTML = "";
-
       colorBlocks.forEach((block) => {
         const startPos = scale(block.start);
         const endPos = scale(block.end);
-
         const leftPos = startPos - marginLeft;
         const blockWidth = endPos - startPos;
-
         if (endPos >= marginLeft && startPos <= width - marginRight) {
           const div = document.createElement("div");
           div.style.position = "absolute";
@@ -421,7 +528,6 @@ const ZoomableTimeline6 = ({
           div.style.width = `${blockWidth}px`;
           div.style.height = "100%";
           div.style.backgroundColor = block.color;
-          div.style.borderRight = "1px solid white";
           div.style.boxSizing = "border-box";
           timelineRef.current!.appendChild(div);
         }
@@ -436,40 +542,8 @@ const ZoomableTimeline6 = ({
       const svgX = position + marginLeft;
       const date = xScaleRef.current.invert(svgX);
       setPivotDate(date);
-      console.log(
-        "Precise pivot position:",
-        position,
-        "Date:",
-        date.toISOString()
-      );
     }
   }
-
-  // const handlePivotMouseDown = (e: React.MouseEvent) => {
-  //   e.preventDefault();
-  //   setIsDragging(true);
-  //   setDragStartX(e.clientX);
-  //   setDragStartPivot(precisePivotRef.current);
-  // };
-
-  // const handleMouseMove = (e: React.MouseEvent) => {
-  //   if (!isDragging || !containerRef.current) return;
-
-  //   const deltaX = e.clientX - dragStartX;
-  //   const maxX = width - marginLeft - marginRight;
-
-  //   const newPosition = Math.max(0, Math.min(dragStartPivot + deltaX, maxX));
-
-  //   console.log(newPosition, "-----new position (with sub-pixel precision)");
-
-  //   setPivotPosition(newPosition);
-  //   precisePivotRef.current = newPosition;
-  //   updatePivotDateFromScale(newPosition);
-  // };
-
-  // const handleMouseUp = () => {
-  //   setIsDragging(false);
-  // };
 
   const handlePivotStart = (clientX: number) => {
     setIsDragging(true);
@@ -479,12 +553,11 @@ const ZoomableTimeline6 = ({
 
   const handlePivotMove = (clientX: number) => {
     if (!isDragging || !containerRef.current) return;
-
     const deltaX = clientX - dragStartX;
     const maxX = width - marginLeft - marginRight;
     const newPosition = Math.max(0, Math.min(dragStartPivot + deltaX, maxX));
-
     setPivotPosition(newPosition);
+    pivotPositionRef.current = newPosition;
     precisePivotRef.current = newPosition;
     updatePivotDateFromScale(newPosition);
   };
@@ -494,88 +567,35 @@ const ZoomableTimeline6 = ({
   };
 
   const formatPivotDate = (date: Date) => {
-    return d3.timeFormat("%m/%d/%Y, %I:%M:%S %p")(date);
+    return d3.timeFormat("%m/%d/%Y, %I:%M %p")(date);
   };
 
   const scrollTimeline = (direction: "left" | "right", px: number) => {
-    // Safety: we need the svg element, the current zoom behavior, and the zoom transform to exist.
     if (!svgRef.current || !zoomRef.current) return;
-
-    // Use d3 to select the svg node (we will call the zoom's translateBy via d3.call)
     const svg = d3.select(svgRef.current);
-
-    // dx is positive to move content right (visible window shifts left),
-    // and negative to move content left (visible window shifts right).
-    // When user clicks "left" arrow we want to move the visible window earlier in time,
-    // so we translate by (+px). For "right" arrow we translate by (-px).
     const dx = direction === "left" ? px : -px;
-
-    // Use the built-in translateBy operation on the zoom behavior.
-    // This will:
-    //  - compute a new transform (current transform + dx)
-    //  - apply scale (no change in k)
-    //  - respect translateExtent and scaleExtent automatically
-    //  - update internal zoom state so subsequent zoom events remain consistent
     svg
-      .transition() // animate the pan so it feels smooth
+      .transition()
       .duration(300)
-      // call the zoom behavior's translateBy (note: zoomRef.current is the zoom behavior)
       .call((zoomRef.current as any).translateBy as any, dx, 0);
   };
 
   return (
-    <div className="flex flex-col items-center bg-gray-50 overflow-x-hidden p-4">
-      <div className="mb-4 p-4 bg-gray-100 rounded-lg shadow-sm text-sm font-mono w-full">
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <div className="text-blue-600 font-bold text-lg mb-1">
-              {zoomInfo.current}
-            </div>
-            <div className="text-gray-600 text-xs">
-              Zoom: {zoomInfo.zoomLevel}x | {zoomInfo.currentPxPerMin} px/min
-            </div>
-          </div>
-          <div className="text-green-600">
-            <div className="font-semibold">⬅ Zoom In to:</div>
-            <div className="text-xs">{zoomInfo.zoomIn}</div>
-          </div>
-          <div className="text-orange-600">
-            <div className="font-semibold">Zoom Out to: ➡</div>
-            <div className="text-xs">{zoomInfo.zoomOut}</div>
-          </div>
-        </div>
-        <div className="mt-3 pt-3 border-t border-gray-300">
-          <div className="text-purple-600 font-semibold">
-            Pivot Position: {precisePivotRef.current.toFixed(4)}px
-          </div>
-          <div className="text-purple-600 font-semibold">Gap: {tickGap}px</div>
-        </div>
-        <div className="mt-3 pt-3 border-t border-gray-300">
-          <div className="text-purple-600 font-semibold">
-            Start: {d3.timeFormat("%m/%d/%Y, %I:%M:%S %p")(visibleRange.start)}
-          </div>
-          <div className="text-purple-600 font-semibold">
-            End: {d3.timeFormat("%m/%d/%Y, %I:%M:%S %p")(visibleRange.end)}
-          </div>
-        </div>
-      </div>
-
-      <div className="relative w-full flex items-center px-10">
+    <div className="flex flex-col items-center overflow-hidden pt-12">
+      {/* UI unchanged */}
+      <div className="relative w-full flex items-center px-6">
         <button
-          className="h-10 w-10 rounded-full bg-white hover:bg-neutral-400 absolute top-12 left-5 z-[99999]"
+          className="h-12 w-6 border rounded-l-md bg-white absolute top-12 left-5 z-9999 flex justify-center items-center"
           onClick={() => scrollTimeline("left", 100)}
         >
-          ◀
+          <LeftIcon />
         </button>
         <div
           className="bg-white w-full relative"
           ref={containerRef}
-          // onMouseMove={handleMouseMove}
-          // onMouseUp={handleMouseUp}
-          // onMouseLeave={handleMouseUp}
           onMouseMove={(e) => handlePivotMove(e.clientX)}
           onTouchMove={(e) => handlePivotMove(e.touches[0].clientX)}
-          onMouseLeave={(e) => handlePivotEnd()}
+          onMouseLeave={() => handlePivotEnd()}
           style={{ cursor: isDragging ? "grabbing" : "default" }}
         >
           <svg
@@ -583,40 +603,19 @@ const ZoomableTimeline6 = ({
             viewBox={`0 0 ${width} ${height}`}
             width={width}
             height={height}
-            style={{
-              maxWidth: "100%",
-              height: "auto",
-              display: "block",
-            }}
+            style={{ maxWidth: "100%", height: "auto", display: "block" }}
           />
-
           <div
             className="absolute top-12 bg-amber-200 h-4"
             style={{
               width: `${width - marginLeft - marginRight}px`,
               height: `${timelineHeight}px`,
               marginLeft: `${marginLeft}px`,
-              marginTop: "10px",
-              border: "1px solid #ccc",
               overflow: "hidden",
               pointerEvents: "none",
             }}
             ref={timelineRef}
           />
-
-          <div
-            className="absolute top-32 bg-amber-200 h-4"
-            style={{
-              width: `${width - marginLeft - marginRight}px`,
-              height: `${timelineHeight}px`,
-              marginLeft: `${marginLeft}px`,
-              marginTop: "10px",
-              border: "1px solid #ccc",
-              overflow: "hidden",
-              pointerEvents: "none",
-            }}
-          />
-
           <div
             className="absolute"
             style={{
@@ -624,50 +623,15 @@ const ZoomableTimeline6 = ({
               top: "0",
               bottom: "0",
               width: "1px",
-              backgroundColor: "#2563eb",
+              backgroundColor: "transparent",
               pointerEvents: "none",
               zIndex: 10,
             }}
           >
-            <div
-              className="absolute top-0 bottom-0 w-full"
-              style={{
-                background:
-                  "linear-gradient(to bottom, #2563eb 0%, #2563eb 100%)",
-              }}
-            />
-
-            <div
-              className="absolute"
-              style={{
-                top: "-1px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "0",
-                height: "0",
-                borderLeft: "6px solid transparent",
-                borderRight: "6px solid transparent",
-                borderTop: "8px solid #2563eb",
-              }}
-            />
-
-            <div
-              className="absolute"
-              style={{
-                bottom: "-1px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "0",
-                height: "0",
-                borderLeft: "6px solid transparent",
-                borderRight: "6px solid transparent",
-                borderBottom: "8px solid #2563eb",
-              }}
-            />
+            <div className="absolute top-3 bottom-0 w-full bg-ashBrown h-[90%]" />
           </div>
-
           <div
-            className="absolute bg-white border-2 border-blue-600 rounded-lg shadow-lg px-3 py-2"
+            className="absolute bg-lavenderMist border-2 border-darkViolet rounded-full shadow-lg px-3 py-1"
             style={{
               left: `${marginLeft + pivotPosition}px`,
               top: "-45px",
@@ -677,30 +641,45 @@ const ZoomableTimeline6 = ({
               userSelect: "none",
               cursor: isDragging ? "grabbing" : "grab",
             }}
-            // onMouseDown={handlePivotMouseDown}
             onMouseDown={(e) => handlePivotStart(e.clientX)}
             onTouchStart={(e) => handlePivotStart(e.touches[0].clientX)}
           >
-            <div className="text-xs font-semibold text-gray-700 whitespace-nowrap flex items-center gap-1">
-              <span>{formatPivotDate(pivotDate)}</span>
-              <span className="text-blue-600">⟷</span>
+            <div className="text-xs text-gray-700 whitespace-nowrap flex items-center gap-2">
+              <span className="text-violet-500">
+                {formatPivotDate(pivotDate)}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  onCalendarClick();
+                }}
+              >
+                <CalendarIcon />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  onReloadClick();
+                }}
+                className="p-1"
+              >
+                <RotateCw size={16} className="rotate-90" />
+              </button>
             </div>
+          </div>
+          <div className="h-32 w-full px-8.5 relative">
+            <div className="bg-yellow-200 h-full w-full"></div>
           </div>
         </div>
         <button
-          className="h-10 w-10 rounded-full bg-white hover:bg-neutral-400 absolute top-12 right-5"
+          className="h-12 w-6 border rounded-r-md bg-white absolute top-12 right-5 flex justify-center items-center"
           onClick={() => scrollTimeline("right", 100)}
         >
-          ▶
+          <RightIcon />
         </button>
-      </div>
-
-      <div className="mt-4 text-sm text-gray-600">
-        Scroll to zoom, drag to pan. Drag the tooltip to move the pivot line
-        with sub-pixel precision.
       </div>
     </div>
   );
 };
 
-export default ZoomableTimeline6;
+export default ZoomableTimelineDebug;
