@@ -119,7 +119,7 @@ export default function Home() {
           onVisibleRangeChange={(data) => setVisibleRange(data)}
         /> */}
       </div>
-      {currentInterval}
+
       <div className="pb-8">
         <div className="bg-lavenderMist_50_opacity mx-15 pt-9">
           <div className=" flex justify-end gap-6.5 mr-4">
