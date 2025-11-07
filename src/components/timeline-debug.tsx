@@ -628,7 +628,7 @@ const ZoomableTimelineDebug = ({
 
   return (
     <div className="flex flex-col items-center overflow-hidden pt-12">
-      <div className="mb-4 p-4 bg-gray-100 rounded-lg shadow-sm text-sm font-mono w-full">
+      <div className="mb-4 p-4 bg-gray-100 rounded-lg shadow-sm text-sm font-mono w-full hidden">
         <div className="grid grid-cols-3 gap-4">
           <div>
             <div className="text-blue-600 font-bold text-lg mb-1">
