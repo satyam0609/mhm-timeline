@@ -5,45 +5,7 @@ import ZoomableTimelineDebug1 from "@/components/timeline4";
 import { Checkbox } from "@/components/ui/checkbox";
 import { COLORS } from "@/constants/color";
 import { generateTimeSeriesData } from "@/utils/line-chart-data";
-import { useEffect, useState } from "react";
-
-const generateColorBlocks = (startDate: Date, endDate: Date) => {
-  const blocks = [];
-  const colors: Record<number, string> = {
-    1: "#9999d6", // COLORS.silverChalice
-    2: COLORS.darkgreen,
-    3: COLORS.salem,
-    4: COLORS.jade,
-    5: COLORS.algaeGreen,
-    6: "#7c79b2", // COLORS.codGray
-    7: COLORS.lightRed,
-    8: COLORS.pearlBush,
-  };
-
-  const colorKeys = Object.keys(colors).map(Number);
-  const current = new Date(startDate);
-
-  while (current < endDate) {
-    // random duration between 0 and 4 hours
-    const duration = Math.random() * 3600000 * 4;
-    const blockEnd = new Date(
-      Math.min(current.getTime() + duration, endDate.getTime())
-    );
-
-    const randomKey = colorKeys[Math.floor(Math.random() * colorKeys.length)];
-
-    blocks.push({
-      start: new Date(current),
-      end: blockEnd,
-      color: colors[randomKey],
-    });
-
-    // move to the next block start
-    current.setTime(blockEnd.getTime());
-  }
-
-  return blocks;
-};
+import { useCallback, useEffect, useState } from "react";
 
 export default function Home() {
   const [domain, setDomain] = useState<{ startDate: Date; endDate: Date }>({
@@ -68,6 +30,48 @@ export default function Home() {
   const [showTemperature, setShowTemperature] = useState(true);
   const [showHumidity, setShowHumidity] = useState(true);
   const [visibleTicks, setVisibleTicks] = useState([]);
+
+  const generateColorBlocks = useCallback(
+    (startDate: Date, endDate: Date) => {
+      const blocks = [];
+      const colors: Record<number, string> = {
+        1: "#9999d6", // COLORS.silverChalice
+        2: COLORS.darkgreen,
+        3: COLORS.salem,
+        4: COLORS.jade,
+        5: COLORS.algaeGreen,
+        6: "#7c79b2", // COLORS.codGray
+        7: COLORS.lightRed,
+        8: COLORS.pearlBush,
+      };
+
+      const colorKeys = Object.keys(colors).map(Number);
+      const current = new Date(startDate);
+
+      while (current < endDate) {
+        // random duration between 0 and 4 hours
+        const duration = Math.random() * 3600000 * 4;
+        const blockEnd = new Date(
+          Math.min(current.getTime() + duration, endDate.getTime())
+        );
+
+        const randomKey =
+          colorKeys[Math.floor(Math.random() * colorKeys.length)];
+
+        blocks.push({
+          start: new Date(current),
+          end: blockEnd,
+          color: colors[randomKey],
+        });
+
+        // move to the next block start
+        current.setTime(blockEnd.getTime());
+      }
+
+      return blocks;
+    },
+    [visibleRange.start, visibleRange.end, currentInterval]
+  );
 
   useEffect(() => {
     if (currentInterval && visibleRange.start && visibleRange.end) {
@@ -109,15 +113,6 @@ export default function Home() {
             animateInitialRender: true,
           }}
         />
-      </div>
-      <div>
-        {/* <ZoomableTimeline
-          startDate={domain.startDate}
-          endDate={domain.endDate}
-          data={data}
-          onZoom={(data) => setCurrentInterval(data)}
-          onVisibleRangeChange={(data) => setVisibleRange(data)}
-        /> */}
       </div>
 
       <div className="pb-8">
