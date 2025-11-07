@@ -112,7 +112,7 @@ interface ZoomableTimelineProps {
   data?: any[];
 }
 
-const ZoomableTimelineDebug = ({
+const ZoomableTimelineDebug1 = ({
   timelineConfig = {
     initialInterval: 4,
     scrollTo: "start",
@@ -845,4 +845,4 @@ const ZoomableTimelineDebug = ({
   );
 };
 
-export default ZoomableTimelineDebug;
+export default ZoomableTimelineDebug1;

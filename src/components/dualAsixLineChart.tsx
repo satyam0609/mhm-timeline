@@ -51,82 +51,120 @@ const data = [
   timestamp: new Date(d.time).getTime(), // Convert to numeric timestamp for XAxis
 }));
 
+// const CustomTick = ({
+//   x,
+//   y,
+//   payload,
+//   dataLength,
+//   showStart,
+//   showEnd,
+//   isFirstLabelShowing,
+// }: any) => {
+//   const date = new Date(payload.value);
+//   const timeLabel = d3.timeFormat("%I:%M %p")(date); // e.g. "02:00 AM"
+//   const dateLabel = d3.timeFormat("%m/%d")(date); // e.g. "07/01"
+//   // console.log(dataLength, showStart, isFirstLabelShowing, "------linechart");
+
+//   // Show label only for even indexes and first/last tick
+//   let showLabel = false;
+
+//   const isFirst = payload.index === 0;
+//   const isLast = payload.index === dataLength - 1;
+
+//   // Hide first tick if start is inserted → false
+//   if (isFirst && !showStart) {
+//     showLabel = false;
+//   }
+//   // Hide last tick if end is inserted → false
+//   else if (isLast && !showEnd) {
+//     showLabel = false;
+//   }
+//   // Hide first tick if it's not supposed to be visible even though showStart is true
+//   else if (isFirst && showStart && !isFirstLabelShowing) {
+//     showLabel = false;
+//   }
+//   // Otherwise, decide based on even/odd index pattern
+//   else {
+//     // Determine offset: if first label is inserted, shift the parity by 1
+//     const offset = !showStart ? 1 : 0;
+//     // console.log(offset, isFirstLabelShowing, "---------offset");
+
+//     if (isFirstLabelShowing) {
+//       showLabel = (payload.index + offset) % 2 === 0;
+//     } else {
+//       showLabel = (payload.index + offset) % 2 !== 0;
+//     }
+//   }
+
+//   return (
+//     <g transform={`translate(${x},${y})`}>
+//       {showLabel && (
+//         <text textAnchor="middle" fill={COLORS.black} fontSize={12}>
+//           <tspan x={0} dy="1.2em">
+//             {timeLabel}
+//           </tspan>
+//           <tspan x={0} dy="1.2em">
+//             {dateLabel}
+//           </tspan>
+//         </text>
+//       )}
+//     </g>
+//   );
+// };
+
 const CustomTick = ({
   x,
   y,
   payload,
-  dataLength,
-  showStart,
-  showEnd,
-  isFirstLabelShowing,
-}: any) => {
+  visibleLabelTicks,
+}: {
+  x: number;
+  y: number;
+  payload: { value: number };
+  visibleLabelTicks?: string[]; // date strings like "2025-07-01T00:00:00Z"
+}) => {
   const date = new Date(payload.value);
-  const timeLabel = d3.timeFormat("%I:%M %p")(date); // e.g. "02:00 AM"
-  const dateLabel = d3.timeFormat("%m/%d")(date); // e.g. "07/01"
-  console.log(dataLength, showStart, isFirstLabelShowing, "------linechart");
+  const timestamp = date.getTime();
+  // Convert the visible label strings to timestamps once
+  const visibleTimestamps = visibleLabelTicks?.map((d) =>
+    new Date(d).getTime()
+  );
 
-  // Show label only for even indexes and first/last tick
-  let showLabel = false;
+  // Check if this tick is visible (allow a small tolerance, e.g. ±1 minute)
+  const isVisible = visibleTimestamps?.some(
+    (t) => Math.abs(t - timestamp) < 60_000
+  );
 
-  const isFirst = payload.index === 0;
-  const isLast = payload.index === dataLength - 1;
-
-  // Hide first tick if start is inserted → false
-  if (isFirst && !showStart) {
-    showLabel = false;
-  }
-  // Hide last tick if end is inserted → false
-  else if (isLast && !showEnd) {
-    showLabel = false;
-  }
-  // Hide first tick if it's not supposed to be visible even though showStart is true
-  else if (isFirst && showStart && !isFirstLabelShowing) {
-    showLabel = false;
-  }
-  // Otherwise, decide based on even/odd index pattern
-  else {
-    // Determine offset: if first label is inserted, shift the parity by 1
-    const offset = !showStart ? 1 : 0;
-    console.log(offset, isFirstLabelShowing, "---------offset");
-
-    if (isFirstLabelShowing) {
-      showLabel = (payload.index + offset) % 2 === 0;
-    } else {
-      showLabel = (payload.index + offset) % 2 !== 0;
-    }
-  }
+  if (!isVisible) return null;
+  const timeLabel = d3.timeFormat("%I:%M %p")(date);
+  const dateLabel = d3.timeFormat("%m/%d")(date);
 
   return (
     <g transform={`translate(${x},${y})`}>
-      {showLabel && (
-        <text textAnchor="middle" fill={COLORS.black} fontSize={12}>
-          <tspan x={0} dy="1.2em">
-            {timeLabel}
-          </tspan>
-          <tspan x={0} dy="1.2em">
-            {dateLabel}
-          </tspan>
-        </text>
-      )}
+      <text textAnchor="middle" fill={COLORS.black} fontSize={12}>
+        <tspan x={0} dy="1.2em">
+          {timeLabel}
+        </tspan>
+        <tspan x={0} dy="1.2em">
+          {dateLabel}
+        </tspan>
+      </text>
     </g>
   );
 };
 
 export default function DualAxisChart({
-  isFirstLabelShowing = true,
-  tickGap = 1,
   data,
   showTemperature = true,
   showHumidity = true,
-  showStartEndLabel,
+  visibleLabelTicks = [],
 }: {
-  isFirstLabelShowing?: boolean;
-  tickGap?: number;
   data: any[];
   showTemperature?: boolean;
   showHumidity?: boolean;
-  showStartEndLabel?: { start: boolean; end: boolean };
+  visibleLabelTicks?: any;
 }) {
+  // console.log(data, "----------chartdata");
   return (
     <div className="w-full bg-white rounded-2xl overflow-hidden">
       <ResponsiveContainer width="100%" height={340}>
@@ -170,10 +208,9 @@ export default function DualAxisChart({
             tick={(props) => (
               <CustomTick
                 {...props}
-                isFirstLabelShowing={isFirstLabelShowing}
                 dataLength={data.length}
-                showStart={showStartEndLabel?.start}
-                showEnd={showStartEndLabel?.end}
+                totalTicks={data.length}
+                visibleLabelTicks={visibleLabelTicks}
               />
             )}
             // tick={{ fontSize: 12 }}

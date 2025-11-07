@@ -1,6 +1,7 @@
 "use client";
 import DualAxisChart from "@/components/dualAsixLineChart";
 import ZoomableTimelineDebug from "@/components/timeline-debug";
+import ZoomableTimelineDebug1 from "@/components/timeline4";
 import { Checkbox } from "@/components/ui/checkbox";
 import { COLORS } from "@/constants/color";
 import { generateTimeSeriesData } from "@/utils/line-chart-data";
@@ -66,12 +67,7 @@ export default function Home() {
   //linechart states
   const [showTemperature, setShowTemperature] = useState(true);
   const [showHumidity, setShowHumidity] = useState(true);
-  const [showStartEndLabel, setShowStartEndLabel] = useState({
-    start: false,
-    end: false,
-  });
-  const [intervalVariant, setIntervalVariant] = useState("even");
-  const [isFirstLabelShowing, setIsFirstLabelShowing] = useState(false);
+  const [visibleTicks, setVisibleTicks] = useState([]);
 
   useEffect(() => {
     if (currentInterval && visibleRange.start && visibleRange.end) {
@@ -85,7 +81,6 @@ export default function Home() {
         currentInterval
       );
       setLineChartData(generateData);
-      setShowStartEndLabel({ start: !startInserted, end: !endInserted });
     }
   }, [visibleRange]);
 
@@ -93,23 +88,26 @@ export default function Home() {
     const blocks = generateColorBlocks(domain.startDate, domain.endDate);
     setData(blocks);
   }, [domain.startDate, domain.endDate]);
-  console.log("lineChartData", lineChartData);
+  // console.log("lineChartData", lineChartData);
   return (
     <div className="px-0">
-      {/* <div>
-        <ZoomableTimeline5 />
-      </div> */}
       <div>
         <ZoomableTimelineDebug
           startDate={domain.startDate}
           endDate={domain.endDate}
           data={data}
           onZoom={(data) => {
-            setCurrentInterval(data.currentInterval),
-              setIsFirstLabelShowing(data.firstShow);
+            setCurrentInterval(data.currentInterval);
+            setVisibleTicks(data.visibleTicks);
           }}
           onVisibleRangeChange={(data) => setVisibleRange(data)}
-          onGapChange={(gap) => console.log(gap, "----------gap between tick")}
+          timelineConfig={{
+            initialInterval: 4,
+            scrollTo: "start",
+            needTwoLineLabel: true,
+            intervalVariant: "even",
+            animateInitialRender: true,
+          }}
         />
       </div>
       <div>
@@ -121,7 +119,7 @@ export default function Home() {
           onVisibleRangeChange={(data) => setVisibleRange(data)}
         /> */}
       </div>
-
+      {currentInterval}
       <div className="pb-8">
         <div className="bg-lavenderMist_50_opacity mx-15 pt-9">
           <div className=" flex justify-end gap-6.5 mr-4">
@@ -156,11 +154,10 @@ export default function Home() {
 
         {data.length > 0 && (
           <DualAxisChart
-            isFirstLabelShowing={isFirstLabelShowing}
             showHumidity={showHumidity}
             showTemperature={showTemperature}
             data={lineChartData}
-            showStartEndLabel={showStartEndLabel}
+            visibleLabelTicks={visibleTicks as any}
           />
         )}
       </div>

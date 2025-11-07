@@ -97,6 +97,7 @@ interface timelineConfigProp {
   needTwoLineLabel?: boolean;
   intervalVariant?: "adjust" | "all" | "even";
   animateInitialRender?: boolean;
+  minTickGap?: number;
 }
 
 interface ZoomableTimelineProps {
@@ -113,13 +114,7 @@ interface ZoomableTimelineProps {
 }
 
 const ZoomableTimelineDebug = ({
-  timelineConfig = {
-    initialInterval: 4,
-    scrollTo: "start",
-    needTwoLineLabel: true,
-    intervalVariant: "even",
-    animateInitialRender: true,
-  },
+  timelineConfig = {},
   onZoom = () => {},
   onGapChange = () => {},
   OnEndGapChange = () => {},
@@ -130,6 +125,14 @@ const ZoomableTimelineDebug = ({
   startDate = new Date(),
   endDate = new Date(),
 }: ZoomableTimelineProps) => {
+  const {
+    initialInterval = 4,
+    scrollTo = "start",
+    needTwoLineLabel = true,
+    intervalVariant = "adjust",
+    animateInitialRender = true,
+    minTickGap = 80,
+  } = timelineConfig;
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<any>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -198,10 +201,15 @@ const ZoomableTimelineDebug = ({
     return intervals.find((d) => d.key === "3M")!;
   };
 
-  const onScrollorZoomEnd = (range: any, currentInterval: any) => {
-    console.log(currentInterval, range, "----current interval level");
+  const onScrollorZoomEnd = (range: any, zoomData: any) => {
+    console.log(
+      zoomData.currentInterval,
+      range,
+      zoomData.visibleTicks,
+      "----current interval level"
+    );
     throttledOnVisibleRangeChange(range);
-    throttledOnZoom(currentInterval);
+    throttledOnZoom(zoomData);
   };
 
   useEffect(() => {
@@ -256,13 +264,15 @@ const ZoomableTimelineDebug = ({
         );
 
         const shouldShow = (() => {
-          switch (timelineConfig.intervalVariant) {
+          switch (intervalVariant) {
             case "all":
               return true;
             case "even":
               return globalIndex % 2 === 0;
             case "adjust":
-              return tickGapRef.current < 80 ? globalIndex % 2 === 0 : true;
+              return tickGapRef.current < minTickGap
+                ? globalIndex % 2 === 0
+                : true;
             default:
               return true;
           }
@@ -278,7 +288,7 @@ const ZoomableTimelineDebug = ({
           .style("fill", COLORS.black);
 
         // Check if we need two lines (for 6h, 12h, 1d intervals)
-        if (timelineConfig.needTwoLineLabel) {
+        if (needTwoLineLabel) {
           const date = new Date(d);
           const datePart = d3.timeFormat("%m/%d")(date);
           const timePart = d3.timeFormat("%I:%M %p")(date);
@@ -317,13 +327,17 @@ const ZoomableTimelineDebug = ({
       ])
       .on("zoom", zoomed)
       .on("end", (event: any) => {
+        console.log("running");
         setIsZooming(false);
         const xz = event.transform.rescaleX(x);
-        const currentZoom = event.transform.k;
-        const currentPxPerMin = basePxPerMin * currentZoom;
-        const currentInterval = getInterval(currentPxPerMin);
-        // --- compute visible range ---
         const [visibleStart, visibleEnd] = xz.domain();
+        const visibleSpanMs = visibleEnd.getTime() - visibleStart.getTime();
+        const visibleWidthPx = width - marginLeft - marginRight;
+        const currentPxPerMin = visibleWidthPx / (visibleSpanMs / (1000 * 60));
+        const currentInterval = getInterval(currentPxPerMin);
+
+        // --- compute visible range ---
+        // const [visibleStart, visibleEnd] = xz.domain();
         const range = { start: visibleStart, end: visibleEnd };
         // Generate all ticks in the full range
         const fullRangeTicks = currentInterval.interval.range(
@@ -333,44 +347,39 @@ const ZoomableTimelineDebug = ({
 
         // Get visible ticks
         const visibleTicks = xz.ticks(currentInterval.interval);
+        let visibleLabelTicks = [...visibleTicks];
+        console.log("running 1", tickGapRef.current);
+        switch (timelineConfig.intervalVariant) {
+          case "all":
+            // Show all visible ticks
+            break;
 
-        // Find the first visible tick
-        const firstVisibleTick = visibleTicks[0];
-        let isFirstTickShowing = true;
+          case "even":
+            visibleLabelTicks = visibleTicks.filter((t: any, i: number) => {
+              const tickDate = new Date(t);
+              const globalIndex = fullRangeTicks.findIndex(
+                (t) => t.getTime() === tickDate.getTime()
+              );
+              return globalIndex % 2 === 0;
+            });
+            break;
 
-        if (firstVisibleTick) {
-          // Find its global index in the full range
-          const globalIndex = fullRangeTicks.findIndex(
-            (t) => t.getTime() === firstVisibleTick.getTime()
-          );
-
-          // Check if this tick should be showing based on the variant setting
-          isFirstTickShowing = (() => {
-            switch (timelineConfig.intervalVariant) {
-              case "all":
-                return true;
-              case "even":
-                return globalIndex % 2 === 0;
-              case "adjust":
-                return tickGapRef.current < 80 ? globalIndex % 2 === 0 : true;
-              default:
-                return true;
-            }
-          })();
-
-          console.log("First visible tick:", {
-            date: firstVisibleTick,
-            globalIndex: globalIndex,
-            isShowing: isFirstTickShowing,
-            intervalVariant: timelineConfig.intervalVariant,
-            tickGap: tickGapRef.current,
-          });
+          case "adjust":
+            visibleLabelTicks = visibleTicks.filter((t: any, i: number) => {
+              const tickDate = new Date(t);
+              const globalIndex = fullRangeTicks.findIndex(
+                (t) => t.getTime() === tickDate.getTime()
+              );
+              return tickGapRef.current < 80 ? globalIndex % 2 === 0 : true;
+            });
         }
+        console.log("running3");
+        console.log("visible labels", visibleLabelTicks);
 
         setVisibleRange(range);
         onScrollorZoomEnd(range, {
           currentInterval: currentInterval.key,
-          firstShow: isFirstTickShowing,
+          visibleTicks: visibleLabelTicks,
         });
       });
 
@@ -403,7 +412,7 @@ const ZoomableTimelineDebug = ({
       const leftGap = firstTickX - marginLeft;
       const rightGap = width - marginRight - lastTickX;
       OnEndGapChange({ left: leftGap, right: rightGap });
-      console.log("Left gap:", leftGap, "Right gap:", rightGap);
+      // console.log("Left gap:", leftGap, "Right gap:", rightGap);
       if (tickValues.length >= 2) {
         const gapPx = Math.abs(xz(tickValues[1]) - xz(tickValues[0]));
         tickGapRef.current = gapPx;
@@ -460,14 +469,13 @@ const ZoomableTimelineDebug = ({
       .attr("fill", "transparent")
       .attr("pointer-events", "all");
 
-    const initialIntervalConfig =
-      intervals[timelineConfig.initialInterval as number];
+    const initialIntervalConfig = intervals[initialInterval as number];
     const targetPxPerInterval = 90;
     const targetPxPerMin = targetPxPerInterval / initialIntervalConfig.minutes;
     const initialZoomLevel = targetPxPerMin / basePxPerMin;
 
     let centerDate: Date;
-    switch (timelineConfig.scrollTo) {
+    switch (scrollTo) {
       case "start":
         centerDate = startDate;
         break;
@@ -486,38 +494,18 @@ const ZoomableTimelineDebug = ({
     pivotPositionRef.current = initialPivotX;
     precisePivotRef.current = initialPivotX;
     svg.call(zoom as any); // attach zoom behavior
-    console.log(
-      x(startDate) - marginLeft,
-      startDate,
-      "--------------starting date pos"
-    );
-
-    //Initial rendering
-
-    // svg
-    //   .call(zoom as any)
-    //   .transition()
-    //   .duration(750)
-    //   .call(zoom.scaleTo as any, initialZoomLevel, [
-    //     x(centerDate) - marginLeft,
-    //     0,
-    //   ])
-    //   .on("end", () => {
-    //     if (!svg.node()) return;
-
-    //     const transform = d3.zoomTransform(svg.node()!);
-    //     const currentScale = transform.rescaleX(x);
-
-    //     xScaleRef.current = currentScale;
-    //     updatePivotDateFromScale(pivotPositionRef.current);
-    //   });
+    // console.log(
+    //   x(startDate) - marginLeft,
+    //   startDate,
+    //   "--------------starting date pos"
+    // );
 
     svg.call(zoom as any);
 
     const applyInitialZoom = () => {
       const zoomTarget = [x(centerDate) - marginLeft, 0];
 
-      if (timelineConfig.animateInitialRender) {
+      if (animateInitialRender) {
         svg
           .transition()
           .duration(800)
@@ -575,40 +563,14 @@ const ZoomableTimelineDebug = ({
       const svgX = position + marginLeft;
       const date = xScaleRef.current.invert(svgX);
       setPivotDate(date);
-      console.log(
-        "Precise pivot position:",
-        position,
-        "Date:",
-        date.toISOString()
-      );
+      // console.log(
+      //   "Precise pivot position:",
+      //   position,
+      //   "Date:",
+      //   date.toISOString()
+      // );
     }
   }
-
-  // const handlePivotMouseDown = (e: React.MouseEvent) => {
-  //   e.preventDefault();
-  //   setIsDragging(true);
-  //   setDragStartX(e.clientX);
-  //   setDragStartPivot(precisePivotRef.current);
-  // };
-
-  // const handleMouseMove = (e: React.MouseEvent) => {
-  //   if (!isDragging || !containerRef.current) return;
-
-  //   const deltaX = e.clientX - dragStartX;
-  //   const maxX = width - marginLeft - marginRight;
-
-  //   const newPosition = Math.max(0, Math.min(dragStartPivot + deltaX, maxX));
-
-  //   console.log(newPosition, "-----new position (with sub-pixel precision)");
-
-  //   setPivotPosition(newPosition);
-  //   precisePivotRef.current = newPosition;
-  //   updatePivotDateFromScale(newPosition);
-  // };
-
-  // const handleMouseUp = () => {
-  //   setIsDragging(false);
-  // };
 
   const handlePivotStart = (clientX: number) => {
     setIsDragging(true);
@@ -666,7 +628,7 @@ const ZoomableTimelineDebug = ({
 
   return (
     <div className="flex flex-col items-center overflow-hidden pt-12">
-      <div className="mb-4 p-4 bg-gray-100 rounded-lg shadow-sm text-sm font-mono w-full hidden">
+      <div className="mb-4 p-4 bg-gray-100 rounded-lg shadow-sm text-sm font-mono w-full">
         <div className="grid grid-cols-3 gap-4">
           <div>
             <div className="text-blue-600 font-bold text-lg mb-1">
