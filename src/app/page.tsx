@@ -106,9 +106,9 @@ export default function Home() {
   }, [domain.startDate, domain.endDate]);
 
   const checkToken = async () => {
-    sendToReactNative("start", "hello");
+    sendToReactNative("data", "hello", null);
     if (!webToken) return;
-    sendToReactNative("continue", "continue");
+    sendToReactNative("data", "continue", null);
     try {
       const data = await verifyWebToken(webToken);
 

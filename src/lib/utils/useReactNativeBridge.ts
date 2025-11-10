@@ -6,21 +6,7 @@ export type RNMessageData = {
   action: string | null;
 };
 
-declare global {
-  interface Window {
-    receiveFromReactNative?: (data: RNMessageData) => void;
-    ReactNativeWebView?: {
-      postMessage: (msg: string) => void;
-    };
-    initialDates?: { startDate: string; endDate: string };
-  }
-}
-
-/**
- * ✅ Hook for two-way communication between WebView and React Native
- */
 export function useReactNativeBridge() {
-  // Initialize from injected variables (if any)
   const initialStart = window.initialDates?.startDate
     ? new Date(window.initialDates.startDate)
     : null;
@@ -33,9 +19,6 @@ export function useReactNativeBridge() {
     endDate: initialEnd,
   });
 
-  /**
-   * ✅ Function to send structured message to React Native
-   */
   const sendToReactNative = useCallback(
     (
       type: "action" | "data",
@@ -53,28 +36,23 @@ export function useReactNativeBridge() {
     []
   );
 
-  /**
-   * ✅ Receive data or actions from React Native
-   */
   useEffect(() => {
-    window.receiveFromReactNative = (incoming: RNMessageData) => {
-      console.log("✅ Received from React Native:", incoming);
+    // 👇 Safe cast to your local RNMessageData type
+    window.receiveFromReactNative = (incoming: any) => {
+      const msg = incoming as RNMessageData;
+      console.log("✅ Received from React Native:", msg);
 
-      const { type, data: payload, action } = incoming;
+      const { type, data: payload, action } = msg;
 
       if (type === "data" && payload) {
-        // Convert dates if present
-        const updatedData: any = { ...payload };
-        if (payload.startDate)
-          updatedData.startDate = new Date(payload.startDate);
-        if (payload.endDate) updatedData.endDate = new Date(payload.endDate);
-
-        setData((prev) => ({ ...prev, ...updatedData }));
+        const updated: any = { ...payload };
+        if (payload.startDate) updated.startDate = new Date(payload.startDate);
+        if (payload.endDate) updated.endDate = new Date(payload.endDate);
+        setData((prev) => ({ ...prev, ...updated }));
       }
 
       if (type === "action" && action) {
-        console.log("⚡ Received Action:", action);
-        // Handle custom actions if you need (like UI triggers)
+        console.log("⚡ Action from React Native:", action);
       }
     };
 
