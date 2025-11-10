@@ -1,13 +1,25 @@
 "use client";
 import DualAxisChart from "@/components/dualAsixLineChart";
 import ZoomableTimelineDebug from "@/components/timeline-debug";
-import ZoomableTimelineDebug1 from "@/components/timeline4";
 import { Checkbox } from "@/components/ui/checkbox";
 import { COLORS } from "@/constants/color";
-import { generateTimeSeriesData } from "@/utils/line-chart-data";
+import { verifyWebToken } from "@/lib/apis/machine";
+import { useAppDispatch, useAppSelector } from "@/lib/hooks/useRedux";
+import { setToken } from "@/lib/store/slices/auth-slice";
+import { generateTimeSeriesData } from "@/lib/utils/line-chart-data";
+import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { token } = useAppSelector((state) => state.auth);
+  const { data: nativeData, sendToReactNative } = useReactNativeBridge();
+  const searchParams = useSearchParams();
+  const dispatch = useAppDispatch();
+  const webToken = searchParams.get("token");
+  // const webToken =
+  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzJiYjFlMzgzYTNhMjA0OGFhMWFhZTYiLCJpYXQiOjE3NjI3Nzg4NDgsImV4cCI6MTc2Mjc4NjA0OH0.TDm1XDE1NnJFVUKfTv6fBcnn-T13NHgmnGF912OkJxU ";
   const [domain, setDomain] = useState<{ startDate: Date; endDate: Date }>({
     startDate: new Date(Date.UTC(2025, 6, 1, 0, 0, 0)),
     endDate: new Date(Date.UTC(2025, 6, 8, 0, 0, 0)),
@@ -92,7 +104,24 @@ export default function Home() {
     const blocks = generateColorBlocks(domain.startDate, domain.endDate);
     setData(blocks);
   }, [domain.startDate, domain.endDate]);
-  // console.log("lineChartData", lineChartData);
+
+  const checkToken = async () => {
+    sendToReactNative("start", "hello");
+    if (!webToken) return;
+    sendToReactNative("continue", "continue");
+    try {
+      const data = await verifyWebToken(webToken);
+
+      if (data.success) {
+        dispatch(setToken(data.token));
+      }
+    } catch (err) {}
+  };
+
+  useEffect(() => {
+    checkToken();
+  }, [webToken]);
+
   return (
     <div className="px-0">
       <div>
@@ -112,6 +141,9 @@ export default function Home() {
             intervalVariant: "even",
             animateInitialRender: true,
           }}
+          onCalendarClick={() =>
+            sendToReactNative("action", null, "openCalendar")
+          }
         />
       </div>
 

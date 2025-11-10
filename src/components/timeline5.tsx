@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
-import { useResizeObserver } from "@/hooks/useResizeObserver";
+import { useResizeObserver } from "@/lib/hooks/useResizeObserver";
 import { COLORS } from "@/constants/color";
 import LeftIcon from "@/assets/svg/leftIcon";
 import RightIcon from "@/assets/svg/rightIcon";
