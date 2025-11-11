@@ -6,7 +6,7 @@ import * as d3 from "d3";
  * @returns {d3.TimeInterval}
  */
 function getD3Interval(key: string) {
-  const match = key.match(/^(\d+)([mhd])$/);
+  const match = key.match(/^(\d+)([mhdM])$/);
   if (!match)
     throw new Error("Invalid interval key format. Use like '15m', '1h', '1d'.");
 
@@ -20,6 +20,8 @@ function getD3Interval(key: string) {
       return d3.timeHour.every(value);
     case "d":
       return d3.timeDay.every(value);
+    case "M":
+      return d3.timeMonth.every(value);
     default:
       throw new Error("Unsupported interval unit. Use 'm', 'h', or 'd'.");
   }

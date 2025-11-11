@@ -1,58 +1,74 @@
 "use client";
+
+import { RNMessageData } from "@/types/global";
 import { useEffect, useState, useCallback } from "react";
 
-type RNMessageData = {
-  [key: string]: any;
-};
+// type RNMessageData = {
+//   [key: string]: any;
+// };
 
 declare global {
   interface Window {
-    receiveFromReactNative?: (data: RNMessageData) => void;
+    receiveFromReactNative?: (data: any) => void;
+    updateFromReactNative?: (data: RNMessageData) => void;
     ReactNativeWebView?: {
       postMessage: (msg: string) => void;
     };
-    initialDates?: { startDate: string; endDate: string };
+    initialData?: RNMessageData;
   }
 }
 
 /**
- * Hook for two-way communication between WebView and React Native
+ * ✅ Hook for two-way communication between WebView and React Native
  */
 export function useReactNativeBridge() {
-  // Initialize state from injected initialDates
-  if (!window) return {};
-  const initialStart = window.initialDates?.startDate
-    ? new Date(window.initialDates.startDate)
-    : null;
-  const initialEnd = window.initialDates?.endDate
-    ? new Date(window.initialDates.endDate)
-    : null;
+  // ✅ Prevent running on server
+  if (typeof window === "undefined")
+    return { data: {}, sendToReactNative: () => {} };
 
-  const [data, setData] = useState<RNMessageData>({
+  // ✅ Initialize state from injected initialData
+  const initialStart = window.initialData?.data?.startDate
+    ? new Date(window.initialData.data.startDate)
+    : null;
+  const initialEnd = window.initialData?.data?.endDate
+    ? new Date(window.initialData?.data.endDate)
+    : null;
+  const initialSensor = window.initialData?.data?.sensorId || null;
+
+  const [data, setData] = useState<{
+    startDate: Date | null;
+    endDate: Date | null;
+    sensorId: null | string;
+  }>({
     startDate: initialStart,
     endDate: initialEnd,
+    sensorId: initialSensor,
   });
 
-  // Generic function to send key/value to React Native
-  const sendToReactNative = useCallback((key: string, value: any) => {
+  // ✅ Function to send data Web → React Native
+  const sendToReactNative = useCallback((data: any) => {
     if (window.ReactNativeWebView?.postMessage) {
-      const payload: RNMessageData = { [key]: value };
+      const payload = { data };
       window.ReactNativeWebView.postMessage(JSON.stringify(payload));
       console.log("📤 Sent to React Native:", payload);
+    } else {
+      console.warn("⚠️ ReactNativeWebView not found!");
     }
   }, []);
 
-  // Receive updates from React Native
+  // ✅ Listen for messages React Native → Web
   useEffect(() => {
     window.receiveFromReactNative = (incomingData: RNMessageData) => {
       console.log("✅ Received from React Native:", incomingData);
 
-      // Convert startDate/endDate strings to Date if needed
-      const updatedData: RNMessageData = { ...incomingData };
-      if (incomingData.startDate)
-        updatedData.startDate = new Date(incomingData.startDate);
-      if (incomingData.endDate)
-        updatedData.endDate = new Date(incomingData.endDate);
+      const updatedData = { ...incomingData.data };
+
+      if (incomingData.data.startDate)
+        updatedData.startDate = new Date(incomingData.data.startDate);
+      if (incomingData.data.endDate)
+        updatedData.endDate = new Date(incomingData.data.endDate);
+      if (incomingData.data.sensorId)
+        updatedData.sensorId = incomingData.data.sensorId;
 
       setData((prev) => ({ ...prev, ...updatedData }));
     };
@@ -62,64 +78,5 @@ export function useReactNativeBridge() {
     };
   }, []);
 
-  // // Automatically send startDate and endDate if changed
-  // useEffect(() => {
-  //   if (data.startDate) sendToReactNative("startDate", data.startDate.toISOString());
-  //   if (data.endDate) sendToReactNative("endDate", data.endDate.toISOString());
-  // }, [data.startDate, data.endDate, sendToReactNative]);
-
   return { data, sendToReactNative };
 }
-
-// import { useEffect, useState } from "react";
-
-// type RNMessageData = {
-//   startDate: string | Date;
-//   endDate: string | Date;
-// };
-
-// declare global {
-//   interface Window {
-//     receiveFromReactNative?: (data: RNMessageData) => void;
-//     initialDates?: { startDate: string; endDate: string };
-//   }
-// }
-
-// export function useReactNativeBridge() {
-//   // ✅ Initialize state from injected initialDates if available
-//   const initialStart = window.initialDates?.startDate
-//     ? new Date(window.initialDates.startDate)
-//     : new Date();
-//   const initialEnd = window.initialDates?.endDate
-//     ? new Date(window.initialDates.endDate)
-//     : new Date();
-
-//   const [startDate, setStartDate] = useState<Date>(initialStart);
-//   const [endDate, setEndDate] = useState<Date>(initialEnd);
-
-//   useEffect(() => {
-//     console.log("🟡 React Native Bridge mounted");
-
-//     window.receiveFromReactNative = (data: RNMessageData) => {
-//       console.log("✅ Received from React Native:", data);
-
-//       const newStart = new Date(data.startDate);
-//       const newEnd = new Date(data.endDate);
-
-//       if (!isNaN(newStart.getTime())) setStartDate(newStart);
-//       if (!isNaN(newEnd.getTime())) setEndDate(newEnd);
-//     };
-
-//     return () => {
-//       console.log("🔴 Cleaning up React Native Bridge listener");
-//       delete window.receiveFromReactNative;
-//     };
-//   }, []);
-
-//   // Optional: watch for state changes
-//   useEffect(() => {
-//     console.log("🔁 Timeline state updated:", { startDate, endDate });
-//   }, [startDate, endDate]);
-
-//   return { startDate, endDate };
-// }

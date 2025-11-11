@@ -83,12 +83,12 @@ const intervals: IntervalConfig[] = [
     format: d3.timeFormat("%b %Y"),
     minutes: 43200,
   },
-  {
-    key: "3M",
-    interval: d3.timeMonth.every(3)!,
-    format: d3.timeFormat("%b %Y"),
-    minutes: 129600,
-  },
+  // {
+  //   key: "3M",
+  //   interval: d3.timeMonth.every(3)!,
+  //   format: d3.timeFormat("%b %Y"),
+  //   minutes: 129600,
+  // },
 ];
 
 interface timelineConfigProp {
@@ -169,8 +169,8 @@ const ZoomableTimelineDebug = ({
 
   //use this margin top to set the position of ticks and label
   const marginTop = 30;
-  const marginLeft = 33;
-  const marginRight = 33;
+  const marginLeft = 22;
+  const marginRight = 22;
   const timelineHeight = 48;
   //   const { data, sendToReactNative } = useReactNativeBridge();
   // const { startDate, endDate } = data ;
@@ -198,7 +198,7 @@ const ZoomableTimelineDebug = ({
     if (pxPerMin > 0.06) return intervals.find((d) => d.key === "12h")!;
     if (pxPerMin > 0.03) return intervals.find((d) => d.key === "1d")!;
     if (pxPerMin > 0.0014) return intervals.find((d) => d.key === "1M")!;
-    return intervals.find((d) => d.key === "3M")!;
+    return intervals.find((d) => d.key === "12h")!;
   };
 
   const onScrollorZoomEnd = (range: any, zoomData: any) => {
@@ -556,7 +556,7 @@ const ZoomableTimelineDebug = ({
     }
 
     updateTimeline(x);
-  }, [colorBlocks, width]);
+  }, [colorBlocks, width, startDate, endDate]);
 
   function updatePivotDateFromScale(position: number) {
     if (xScaleRef.current) {
@@ -665,7 +665,7 @@ const ZoomableTimelineDebug = ({
 
       <div className="relative w-full flex items-center px-6">
         <button
-          className="h-12 w-6 border border-midnightBlue rounded-l-md bg-white hover:bg-neutral-400 absolute top-12 left-5 z-9999 flex justify-center items-center"
+          className="h-12 w-6 border border-midnightBlue rounded-l-md bg-white hover:bg-neutral-400 absolute top-12 left-4 z-9999 flex justify-center items-center"
           onClick={() => scrollTimeline("left", 100)}
         >
           <LeftIcon />
@@ -694,7 +694,7 @@ const ZoomableTimelineDebug = ({
           />
 
           <div
-            className="absolute top-12 bg-amber-200 h-4"
+            className={`absolute top-12 bg-[#7c79b2] h-4`}
             style={{
               width: `${width - marginLeft - marginRight}px`,
               height: `${timelineHeight}px`,
@@ -751,7 +751,7 @@ const ZoomableTimelineDebug = ({
           </div>
 
           <div
-            className="absolute bg-lavenderMist border-2 border-darkViolet rounded-full shadow-lg px-3 py-1"
+            className="absolute bg-lavenderMist border-2 border-violet-500 rounded-full shadow-lg px-3 py-1"
             style={{
               left: `${marginLeft + pivotPosition}px`,
               top: "-45px",
@@ -793,12 +793,15 @@ const ZoomableTimelineDebug = ({
             </div>
           </div>
           {/* place for image*/}
-          <div className="h-32 w-full px-8.5 relative">
+          <div
+            className={`h-32 w-full relative]`}
+            style={{ paddingLeft: marginLeft, paddingRight: marginRight }}
+          >
             <div className="bg-yellow-200 h-full w-full"></div>
           </div>
         </div>
         <button
-          className="h-12 w-6 border border-midnightBlue rounded-r-md bg-white hover:bg-neutral-400 absolute top-12 right-5 flex justify-center items-center"
+          className="h-12 w-6 border border-midnightBlue rounded-r-md bg-white hover:bg-neutral-400 absolute top-12 right-4 flex justify-center items-center"
           onClick={() => scrollTimeline("right", 100)}
         >
           <RightIcon />

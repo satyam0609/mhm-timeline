@@ -17,6 +17,7 @@ export function useReactNativeBridge() {
   const [data, setData] = useState({
     startDate: initialStart,
     endDate: initialEnd,
+    sensorId: null,
   });
 
   const sendToReactNative = useCallback(

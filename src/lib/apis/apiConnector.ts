@@ -6,7 +6,7 @@ export const storeInit = (_store: any) => {
 };
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL_DEV || "https://ec322a03a214.ngrok-free.app";
+  process.env.NEXT_PUBLIC_BASE_URL_DEV || "https://b242a4eb3cbe.ngrok-free.app";
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
