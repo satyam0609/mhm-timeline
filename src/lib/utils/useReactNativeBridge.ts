@@ -6,7 +6,7 @@ export type RNMessageData = {
   action: string | null;
 };
 
-export function useReactNativeBridge() {
+export function useReactNativeBridge(actions: Record<string, Function> = {}) {
   const initialStart = window.initialDates?.startDate
     ? new Date(window.initialDates.startDate)
     : null;
@@ -18,6 +18,7 @@ export function useReactNativeBridge() {
     startDate: initialStart,
     endDate: initialEnd,
     sensorId: null,
+    selectedDays: 1,
   });
 
   const sendToReactNative = useCallback(
@@ -54,6 +55,14 @@ export function useReactNativeBridge() {
 
       if (type === "action" && action) {
         console.log("⚡ Action from React Native:", action);
+
+        const fn = actions[action];
+
+        if (fn) {
+          fn(payload); // 👈 pass data coming from RN
+        } else {
+          console.warn(`⚠️ No handler found for action: ${action}`);
+        }
       }
     };
 

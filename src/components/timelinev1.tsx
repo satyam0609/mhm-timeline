@@ -50,12 +50,7 @@ const intervals: IntervalConfig[] = [
     format: d3.timeFormat("%I:%M %p"),
     minutes: 60,
   },
-  {
-    key: "2h",
-    interval: d3.timeHour.every(2)!,
-    format: d3.timeFormat("%I:%M %p"),
-    minutes: 120,
-  },
+
   {
     key: "3h",
     interval: d3.timeHour.every(3)!,
@@ -92,12 +87,19 @@ const intervals: IntervalConfig[] = [
     format: d3.timeFormat("%b %Y"),
     minutes: 43200,
   },
-  // {
-  //   key: "3M",
-  //   interval: d3.timeMonth.every(3)!,
-  //   format: d3.timeFormat("%b %Y"),
-  //   minutes: 129600,
-  // },
+];
+
+interface ZoomRangeConstraint {
+  rangeDays: number;
+  maxZoomIntervalKey: string;
+  minZoomIntervalKey: string;
+}
+
+const ZOOM_CONSTRAINTS: ZoomRangeConstraint[] = [
+  { rangeDays: 7, maxZoomIntervalKey: "5m", minZoomIntervalKey: "6h" },
+  { rangeDays: 21, maxZoomIntervalKey: "30m", minZoomIntervalKey: "1d" },
+  { rangeDays: 200, maxZoomIntervalKey: "1h", minZoomIntervalKey: "1w" },
+  { rangeDays: Infinity, maxZoomIntervalKey: "3h", minZoomIntervalKey: "1M" },
 ];
 
 interface timelineConfigProp {
@@ -123,7 +125,7 @@ interface ZoomableTimelineProps {
   loading?: boolean;
 }
 
-const ZoomableTimelineDebug = ({
+const ZoomableTimelineV1 = ({
   timelineConfig = {},
   onZoom = () => {},
   onGapChange = () => {},
@@ -153,6 +155,7 @@ const ZoomableTimelineDebug = ({
   const { width: fallbackWidth } = useResizeObserver(initialWidthRef);
   const width = primaryWidth !== 0 ? primaryWidth : fallbackWidth;
   const [colorBlocks, setColorBlocks] = useState<any[]>([]);
+  const [selectedInterval, setSelectedInterval] = useState("");
   const [zoomInfo, setZoomInfo] = useState({
     current: "",
     currentPxPerMin: 0,
@@ -175,6 +178,8 @@ const ZoomableTimelineDebug = ({
   const xScaleRef = useRef<any>(null);
   const pivotPositionRef = useRef<number>(0);
   const precisePivotRef = useRef<number>(0);
+  const zoomBehaviorRef = useRef<any>(null);
+  const svgSelectionRef = useRef<any>(null);
 
   //trottle functions
   const throttledOnZoom = useRef(throttle(onZoom, 200)).current;
@@ -211,20 +216,6 @@ const ZoomableTimelineDebug = ({
     )(endDate!)}`;
   }, [startDate, endDate]);
 
-  const getInterval = (pxPerMin: number): IntervalConfig => {
-    if (pxPerMin > 10) return intervals.find((d) => d.key === "5m")!;
-    if (pxPerMin > 3) return intervals.find((d) => d.key === "15m")!;
-    if (pxPerMin > 1.5) return intervals.find((d) => d.key === "30m")!;
-    if (pxPerMin > 0.75) return intervals.find((d) => d.key === "1h")!;
-    if (pxPerMin > 0.37) return intervals.find((d) => d.key === "2h")!;
-    if (pxPerMin > 0.25) return intervals.find((d) => d.key === "3h")!;
-    if (pxPerMin > 0.12) return intervals.find((d) => d.key === "6h")!;
-    if (pxPerMin > 0.06) return intervals.find((d) => d.key === "12h")!;
-    if (pxPerMin > 0.03) return intervals.find((d) => d.key === "1d")!;
-    if (pxPerMin > 0.0014) return intervals.find((d) => d.key === "1M")!;
-    return intervals.find((d) => d.key === "12h")!;
-  };
-
   const onScrollorZoomEnd = (range: any, zoomData: any) => {
     console.log(
       zoomData.currentInterval,
@@ -236,108 +227,110 @@ const ZoomableTimelineDebug = ({
     throttledOnZoom(zoomData);
   };
 
-  // const applyZoomToInterval = useCallback(
-  //   (intervalKey: string) => {
-  //     if (
-  //       !svgRef.current ||
-  //       !zoomRef.current ||
-  //       !xScaleRef.current ||
-  //       width === 0
-  //     )
-  //       return;
+  const MIN_PX_PER_TICK = (width - marginLeft - marginRight) / 12;
 
-  //     const svg = d3.select(svgRef.current);
-  //     const currentTransform = d3.zoomTransform(svg.node()!);
-  //     const baseScale = xScaleRef.current;
+  const getTotalDays = () => {
+    if (loading) return 0; // <-- FIX: prevent undefined access
+    if (!startDate || !endDate) return 0; // safety fallback
+    const totalMs = endDate.getTime() - startDate.getTime();
+    return totalMs / (1000 * 60 * 60 * 24);
+  };
 
-  //     const fullSpanMs = endDate.getTime() - startDate.getTime();
-  //     const fullWidthPx = width - marginLeft - marginRight;
-  //     const basePxPerMs = fullWidthPx / fullSpanMs;
-  //     const basePxPerMin = basePxPerMs * 60 * 1000;
+  const getActiveConstraint = (): ZoomRangeConstraint => {
+    const totalDays = getTotalDays();
 
-  //     const targetInterval = intervals.find((i) => i.key === intervalKey);
-  //     if (!targetInterval) return;
-
-  //     const targetPxPerInterval = 90;
-  //     const targetPxPerMin = targetPxPerInterval / targetInterval.minutes;
-  //     const targetZoomLevel = targetPxPerMin / basePxPerMin;
-
-  //     const currentPivotDate = pivotDate;
-  //     const x = d3
-  //       .scaleTime()
-  //       .domain([startDate, endDate])
-  //       .range([marginLeft, width - marginRight]);
-
-  //     const zoomTarget = [x(currentPivotDate) - marginLeft, 0];
-
-  //     svg
-  //       .transition()
-  //       .duration(500)
-  //       .ease(d3.easeCubicOut)
-  //       .call(zoomRef.current.scaleTo as any, targetZoomLevel, zoomTarget);
-  //   },
-  //   [width, startDate, endDate, pivotDate, marginLeft, marginRight]
-  // );
-
-  // ... (inside ZoomableTimelineDebug component)
-
-  const applyZoomToInterval = useCallback(
-    (intervalKey: string) => {
-      if (
-        !svgRef.current ||
-        !zoomRef.current ||
-        !xScaleRef.current ||
-        width === 0
-      )
-        return;
-
-      const svg = d3.select(svgRef.current); // --- 1. Calculate Target Scale (k) ---
-
-      const fullSpanMs = endDate.getTime() - startDate.getTime();
-      const fullWidthPx = width - marginLeft - marginRight;
-      const basePxPerMs = fullWidthPx / fullSpanMs;
-      const basePxPerMin = basePxPerMs * 60 * 1000;
-
-      const targetInterval = intervals.find((i) => i.key === intervalKey);
-      if (!targetInterval) return;
-
-      const targetPxPerInterval = 90; // Desired visual gap for the selected interval
-      const targetPxPerMin = targetPxPerInterval / targetInterval.minutes;
-      const targetZoomLevel = targetPxPerMin / basePxPerMin; // The scale factor (k) // --- 2. Calculate Target Translation (Tx) to fix pivotDate ---
-
-      const currentPivotDate = pivotDate; // The UNZOOMED scale (x) is needed to find the date's raw position.
-
-      const x = d3
-        .scaleTime()
-        .domain([startDate, endDate])
-        .range([marginLeft, width - marginRight]); // x(currentPivotDate) is the untransformed X position of the pivot date.
-
-      const pivotDateX = x(currentPivotDate);
-
-      // The desired screen position (X) for the pivot date is fixed by the pivot line:
-      const desiredScreenX = marginLeft + pivotPositionRef.current; // Calculate Tx such that: k * pivotDateX + Tx = desiredScreenX
-
-      const Tx_final = desiredScreenX - pivotDateX * targetZoomLevel;
-
-      // D3's transform.translate() expects t/k, not t.
-      const targetTransform = d3.zoomIdentity
-        .scale(targetZoomLevel)
-        .translate(Tx_final / targetZoomLevel, 0); // console.log(`[Programmatic Zoom] Key: ${intervalKey}, k: ${targetZoomLevel.toFixed(4)}, Tx: ${Tx_final.toFixed(2)}`);
-
-      svg
-        .transition()
-        .duration(500)
-        .ease(d3.easeCubicOut)
-        .call(zoomRef.current.transform as any, targetTransform); // <<< SWITCHED TO transform
-    },
-    [width, startDate, endDate, pivotDate, marginLeft, marginRight]
-  );
-
-  useEffect(() => {
-    if (!loading && data.length > 0 && width > 0) {
-      applyZoomToInterval(selectedZoomInterval);
+    for (const constraint of ZOOM_CONSTRAINTS) {
+      if (totalDays <= constraint.rangeDays) {
+        return constraint;
+      }
     }
-  }, [selectedZoomInterval]);
+    return ZOOM_CONSTRAINTS[ZOOM_CONSTRAINTS.length - 1];
+  };
+
+  const getAllowedIntervals = (
+    constraint: ZoomRangeConstraint
+  ): IntervalConfig[] => {
+    const maxIdx = intervals.findIndex(
+      (i) => i.key === constraint.maxZoomIntervalKey
+    );
+    const minIdx = intervals.findIndex(
+      (i) => i.key === constraint.minZoomIntervalKey
+    );
+    return intervals.slice(maxIdx, minIdx + 1);
+  };
+
+  const getInterval = (
+    pxPerMin: number,
+    constraint: ZoomRangeConstraint
+  ): IntervalConfig => {
+    const allowedIntervals = getAllowedIntervals(constraint);
+
+    for (const interval of allowedIntervals) {
+      const requiredPxPerMin = MIN_PX_PER_TICK / interval.minutes;
+      if (pxPerMin >= requiredPxPerMin) {
+        return interval;
+      }
+    }
+
+    return allowedIntervals[allowedIntervals.length - 1];
+  };
+
+  const calculateZoomExtent = () => {
+    const constraint = getActiveConstraint();
+    const allowedIntervals = getAllowedIntervals(constraint);
+
+    const finestInterval = allowedIntervals[0];
+
+    const fullSpanMs = endDate.getTime() - startDate.getTime();
+    const fullWidthPx = width - marginLeft - marginRight;
+    const basePxPerMs = fullWidthPx / fullSpanMs;
+    const basePxPerMin = basePxPerMs * 60 * 1000;
+
+    const maxZoomPxPerMin = MIN_PX_PER_TICK / finestInterval.minutes;
+    const maxZoom = maxZoomPxPerMin / basePxPerMin;
+
+    const minZoom = 1.0;
+
+    return { minZoom, maxZoom, constraint, basePxPerMin };
+  };
+
+  const handleIntervalChange = (intervalKey: string) => {
+    console.log("changing interval", intervalKey);
+    if (
+      !zoomBehaviorRef.current ||
+      !svgSelectionRef.current ||
+      !xScaleRef.current
+    )
+      return;
+
+    console.log("its running");
+
+    const fullSpanMs = endDate.getTime() - startDate.getTime();
+    const fullWidthPx = width - marginLeft - marginRight;
+    const basePxPerMs = fullWidthPx / fullSpanMs;
+    const basePxPerMin = basePxPerMs * 60 * 1000;
+
+    const targetInterval = intervals.find((i) => i.key === intervalKey);
+    if (!targetInterval) return;
+
+    const { minZoom, maxZoom } = calculateZoomExtent();
+
+    // Calculate target zoom based on MIN_PX_PER_TICK to ensure proper spacing
+    const targetPxPerMin = MIN_PX_PER_TICK / targetInterval.minutes;
+    let targetZoom = targetPxPerMin / basePxPerMin;
+
+    // Clamp zoom to valid range
+    targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
+
+    const pivotSvgX = pivotPositionRef.current + marginLeft;
+
+    setSelectedInterval(intervalKey);
+
+    svgSelectionRef.current
+      .transition()
+      .duration(500)
+      .call(zoomBehaviorRef.current.scaleTo, targetZoom, [pivotSvgX, 0]);
+  };
 
   useEffect(() => {
     console.log("this run----", loading, !svgRef.current, width, fallbackWidth);
@@ -354,32 +347,34 @@ const ZoomableTimelineDebug = ({
 
     const x = d3
       .scaleTime()
+      //   .scaleUtc()
       .domain([startDate, endDate])
       .range([marginLeft, width - marginRight]);
+
+    const activeConstraint = getActiveConstraint();
+    const { minZoom, maxZoom } = calculateZoomExtent();
 
     const xAxis = (g: any, x: any) => {
       const domain = x.domain();
       const range = x.range();
       const spanMs = domain[1] - domain[0];
       const pixelWidth = range[1] - range[0];
-
       const pxPerMin = pixelWidth / (spanMs / (1000 * 60));
-      const { interval, format } = getInterval(pxPerMin);
-      const tickValues = x.ticks(interval);
-      const currentInterval = getInterval(pxPerMin);
+      const currentInterval = getInterval(pxPerMin, activeConstraint);
+      const tickValues = x.ticks(currentInterval.interval);
 
       const axis = d3
         .axisBottom(x)
         .tickValues(tickValues)
         .tickSizeOuter(0)
-        .tickFormat(format as any);
+        .tickFormat(currentInterval.format as any);
 
       g.call(axis);
 
       // Remove default text elements
       g.selectAll("text").remove();
 
-      const fullRangeTicks = interval.range(startDate, endDate);
+      const fullRangeTicks = currentInterval.interval.range(startDate, endDate);
 
       // Add custom two-line text for intervals that need it
       g.selectAll(".tick").each(function (this: any, d: any, i: number) {
@@ -435,14 +430,14 @@ const ZoomableTimelineDebug = ({
             .text(timePart);
         } else {
           // Single line for other intervals
-          text.text(format(new Date(d)) as string);
+          text.text(currentInterval.format(new Date(d)) as string);
         }
       });
     };
 
     const zoom = d3
       .zoom()
-      .scaleExtent([1, 50])
+      .scaleExtent([minZoom, maxZoom])
       .on("start", () => {
         setIsZooming(true);
       })
@@ -463,7 +458,7 @@ const ZoomableTimelineDebug = ({
         const visibleSpanMs = visibleEnd.getTime() - visibleStart.getTime();
         const visibleWidthPx = width - marginLeft - marginRight;
         const currentPxPerMin = visibleWidthPx / (visibleSpanMs / (1000 * 60));
-        const currentInterval = getInterval(currentPxPerMin);
+        const currentInterval = getInterval(currentPxPerMin, activeConstraint);
 
         // --- compute visible range ---
         // const [visibleStart, visibleEnd] = xz.domain();
@@ -513,6 +508,8 @@ const ZoomableTimelineDebug = ({
       });
 
     zoomRef.current = zoom;
+    zoomBehaviorRef.current = zoom;
+    svgSelectionRef.current = svg;
 
     const gx = svg
       .append("g")
@@ -535,7 +532,9 @@ const ZoomableTimelineDebug = ({
       setVisibleRange({ start: visibleStart, end: visibleEnd });
 
       // --- compute gap between each tick label ---
-      const tickValues = xz.ticks(getInterval(currentPxPerMin).interval);
+      const tickValues = xz.ticks(
+        getInterval(currentPxPerMin, activeConstraint).interval
+      );
       const firstTickX = xz(tickValues[0]);
       const lastTickX = xz(tickValues[tickValues.length - 1]);
       const leftGap = firstTickX - marginLeft;
@@ -549,34 +548,39 @@ const ZoomableTimelineDebug = ({
         onGapChange(gapPx);
       }
 
-      const currentInterval = getInterval(currentPxPerMin);
+      const currentInterval = getInterval(currentPxPerMin, activeConstraint);
+      const allowedIntervals = getAllowedIntervals(activeConstraint);
+      const isIntervalAllowed = allowedIntervals.some(
+        (i) => i.key === currentInterval.key
+      );
+
+      if (isIntervalAllowed) {
+        setSelectedInterval(currentInterval.key);
+      }
       const currentIdx = intervals.findIndex(
         (i) => i.key === currentInterval!.key
       );
 
-      const zoomInInterval = currentIdx > 0 ? intervals[currentIdx - 1] : null;
+      const zoomInInterval =
+        currentIdx > 0 ? allowedIntervals[currentIdx - 1] : null;
       const zoomOutInterval =
-        currentIdx < intervals.length - 1 ? intervals[currentIdx + 1] : null;
+        currentIdx < allowedIntervals.length - 1
+          ? allowedIntervals[currentIdx + 1]
+          : null;
 
-      let zoomInText = "Max zoom";
-      let zoomOutText = "Min zoom";
+      let zoomInText = "Max zoom (constraint limit)";
+      let zoomOutText = "Min zoom (constraint limit)";
 
       if (zoomInInterval) {
-        const minPxPerInterval = 75;
-        const neededPxPerMin = minPxPerInterval / zoomInInterval.minutes;
+        const neededPxPerMin = MIN_PX_PER_TICK / zoomInInterval.minutes;
         const neededZoom = neededPxPerMin / basePxPerMin;
-        zoomInText = `${zoomInInterval.key} (at ~${neededZoom.toFixed(
-          1
-        )}x zoom)`;
+        zoomInText = `${zoomInInterval.key} (at ~${neededZoom.toFixed(1)}x)`;
       }
 
       if (zoomOutInterval) {
-        const minPxPerInterval = 80;
-        const neededPxPerMin = minPxPerInterval / zoomOutInterval.minutes;
+        const neededPxPerMin = MIN_PX_PER_TICK / zoomOutInterval.minutes;
         const neededZoom = neededPxPerMin / basePxPerMin;
-        zoomOutText = `${zoomOutInterval.key} (at ~${neededZoom.toFixed(
-          1
-        )}x zoom)`;
+        zoomOutText = `${zoomOutInterval.key} (at ~${neededZoom.toFixed(1)}x)`;
       }
 
       setZoomInfo({
@@ -599,9 +603,10 @@ const ZoomableTimelineDebug = ({
       .attr("pointer-events", "all");
 
     const initialIntervalConfig = intervals[initialInterval as number];
-    const targetPxPerInterval = 90;
-    const targetPxPerMin = targetPxPerInterval / initialIntervalConfig.minutes;
-    const initialZoomLevel = targetPxPerMin / basePxPerMin;
+    const targetPxPerMin = MIN_PX_PER_TICK / initialIntervalConfig.minutes;
+    let initialZoomLevel = targetPxPerMin / basePxPerMin;
+
+    initialZoomLevel = Math.max(minZoom, Math.min(maxZoom, initialZoomLevel));
 
     let centerDate: Date;
     switch (scrollTo) {
@@ -622,13 +627,6 @@ const ZoomableTimelineDebug = ({
     setPivotPosition(initialPivotX);
     pivotPositionRef.current = initialPivotX;
     precisePivotRef.current = initialPivotX;
-    svg.call(zoom as any); // attach zoom behavior
-    // console.log(
-    //   x(startDate) - marginLeft,
-    //   startDate,
-    //   "--------------starting date pos"
-    // );
-
     svg.call(zoom as any);
 
     const applyInitialZoom = () => {
@@ -648,11 +646,22 @@ const ZoomableTimelineDebug = ({
     };
 
     const finalizeInitialZoom = () => {
-      if (!svg.node()) return;
-      const transform = d3.zoomTransform(svg.node()!);
-      const currentScale = transform.rescaleX(x);
+      const currentScale = d3.zoomTransform(svg.node()!).rescaleX(x);
       xScaleRef.current = currentScale;
       updatePivotDateFromScale(pivotPositionRef.current);
+
+      const visibleDomain = currentScale.domain();
+      const spanMs = visibleDomain[1].getTime() - visibleDomain[0].getTime();
+      const pixelWidth = width - marginLeft - marginRight;
+      const pxPerMin = pixelWidth / (spanMs / (1000 * 60));
+      const currentInterval = getInterval(pxPerMin, activeConstraint);
+      const allowedIntervals = getAllowedIntervals(activeConstraint);
+      const isIntervalAllowed = allowedIntervals.some(
+        (i) => i.key === currentInterval.key
+      );
+      if (isIntervalAllowed) {
+        setSelectedInterval(currentInterval.key);
+      }
     };
 
     // Trigger initial zoom after a short delay (ensures layout settled)
@@ -692,12 +701,6 @@ const ZoomableTimelineDebug = ({
       const svgX = position + marginLeft;
       const date = xScaleRef.current.invert(svgX);
       setPivotDate(date);
-      // console.log(
-      //   "Precise pivot position:",
-      //   position,
-      //   "Date:",
-      //   date.toISOString()
-      // );
     }
   }
 
@@ -755,6 +758,9 @@ const ZoomableTimelineDebug = ({
       .call((zoomRef.current as any).translateBy as any, dx, 0);
   };
 
+  const activeConstraint = getActiveConstraint();
+  const allowedIntervals = getAllowedIntervals(activeConstraint);
+
   return (
     <div className="flex flex-col items-center overflow-hidden">
       <div className="mb-4 p-4 bg-gray-100 rounded-lg shadow-sm text-sm font-mono w-full hidden">
@@ -807,9 +813,9 @@ const ZoomableTimelineDebug = ({
               </label>
             </div>
             <Select
-              value={selectedZoomInterval}
+              value={selectedInterval}
               onValueChange={(val) => {
-                setSelectedZoomInterval(val);
+                handleIntervalChange(val);
               }}
             >
               <SelectTrigger className="!w-[100px] bg-white">
@@ -817,7 +823,7 @@ const ZoomableTimelineDebug = ({
               </SelectTrigger>
 
               <SelectContent align="end" className="!w-[100px]">
-                {intervals.map((interval) => (
+                {allowedIntervals.map((interval) => (
                   <SelectItem key={interval.key} value={interval.key}>
                     {interval.key}
                   </SelectItem>
@@ -994,4 +1000,4 @@ const ZoomableTimelineDebug = ({
   );
 };
 
-export default ZoomableTimelineDebug;
+export default ZoomableTimelineV1;

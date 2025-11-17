@@ -16,3 +16,8 @@ export const getZoomableData = async (payload: any) => {
   const res = await api.post(machinesApiEndpoint.getZoomableData, payload);
   return res.data;
 };
+
+export const getSpectrogram = async (payload: any) => {
+  const res = await api.post(machinesApiEndpoint.getSpectrogram, payload);
+  return res.data;
+};
