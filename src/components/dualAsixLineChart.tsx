@@ -166,11 +166,11 @@ export default function DualAxisChart({
 }) {
   // console.log(data, "----------chartdata");
   return (
-    <div className="w-full bg-white rounded-2xl overflow-hidden -ml-3.5">
-      <ResponsiveContainer width="102.6%" height={260}>
+    <div className="w-full bg-white rounded-2xl -ml-4">
+      <ResponsiveContainer width="100%" height={260}>
         <LineChart
           data={data}
-          margin={{ top: 0, right: 0, left: 0, bottom: 20 }}
+          margin={{ top: 0, right: -30, left: 0, bottom: 20 }}
         >
           <defs>
             <linearGradient id="chartBg" x1="0" y1="0" x2="0" y2="1">

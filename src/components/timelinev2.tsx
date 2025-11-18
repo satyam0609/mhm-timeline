@@ -1238,7 +1238,13 @@ const ZoomableTimelineV2 = ({
                 <SelectValue placeholder="Zoom" />
               </SelectTrigger>
 
-              <SelectContent align="end" className="">
+              <SelectContent
+                align="end"
+                className=""
+                side="bottom"
+                sideOffset={4}
+                avoidCollisions={false}
+              >
                 {allowedIntervals.map((interval) => (
                   <SelectItem key={interval.key} value={interval.key}>
                     {interval.key}

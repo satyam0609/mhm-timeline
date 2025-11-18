@@ -21,3 +21,8 @@ export const getSpectrogram = async (payload: any) => {
   const res = await api.post(machinesApiEndpoint.getSpectrogram, payload);
   return res.data;
 };
+
+export const getMachineAnalysisData = async (payload: any) => {
+  const res = await api.post(machinesApiEndpoint.postMachineData, payload);
+  return res.data;
+};

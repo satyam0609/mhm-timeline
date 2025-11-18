@@ -87,3 +87,48 @@ export function generateTimeSeriesData(
     endInserted,
   };
 }
+
+export function formatToExtendedISO(date: Date) {
+  // Format using d3 (up to milliseconds)
+  const base = d3.utcFormat("%Y-%m-%dT%H:%M:%S.%L")(date);
+  // Append extra microseconds (000) + Z
+  return base + "000Z";
+}
+
+export function formatToISO(date: Date) {
+  return d3.utcFormat("%Y-%m-%dT%H:%M:%S.%LZ")(date);
+}
+
+export function combineTempHumidity(tempArr: any, humArr: any) {
+  const parseTime = d3.timeParse("%I:%M %p");
+
+  return tempArr.map((tempItem: any, i: number) => {
+    const humItem = humArr[i];
+
+    // Parse date "MM/DD/YYYY"
+    const [month, day, year] = tempItem.date.split("/").map(Number);
+
+    // Parse time like "11:48 AM"
+    const t = parseTime(tempItem.time);
+    if (!t) throw new Error("Invalid time: " + tempItem.time);
+
+    // Build final JS Date from temp array (same in humidity array)
+    const dateObj = new Date(
+      year,
+      month - 1,
+      day,
+      t.getHours(),
+      t.getMinutes(),
+      0
+    );
+
+    return {
+      time: formatToISO(dateObj),
+      temperature: Number(tempItem.value),
+      humidity: Number(humItem.value),
+      timestamp: dateObj.getTime(),
+      file_name: "",
+      no_data: true,
+    };
+  });
+}

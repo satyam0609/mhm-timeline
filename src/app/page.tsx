@@ -4,13 +4,17 @@ import ZoomableTimelineDebug from "@/components/timeline-debug";
 import { Checkbox } from "@/components/ui/checkbox";
 import { COLORS } from "@/constants/color";
 import {
+  getMachineAnalysisData,
   getSpectrogram,
   getZoomableData,
   verifyWebToken,
 } from "@/lib/apis/machine";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks/useRedux";
 import { setToken } from "@/lib/store/slices/auth-slice";
-import { generateTimeSeriesData } from "@/lib/utils/line-chart-data";
+import {
+  combineTempHumidity,
+  generateTimeSeriesData,
+} from "@/lib/utils/line-chart-data";
 import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
 import { timeFormat, timeParse } from "d3";
 import { useSearchParams } from "next/navigation";
@@ -28,6 +32,7 @@ import ZoomableTimelineV1 from "@/components/timelinev1";
 import ZoomableTimelineV2 from "@/components/timelinev2";
 import throttle from "lodash.throttle";
 import { Skeleton } from "@/components/ui/skeleton";
+import { timeStamp } from "console";
 
 const blockColors: Record<number, string> = {
   1: "#9999d6",
@@ -68,8 +73,8 @@ export default function Home() {
   >([]);
 
   const [visibleRange, setVisibleRange] = useState({
-    start: new Date("2025-09-01T23:00:00.000Z"),
-    end: new Date("2026-09-29T05:59:00.000Z"),
+    start: null,
+    end: null,
   });
 
   //spectrogram states
@@ -83,6 +88,10 @@ export default function Home() {
   const [isSubModeOn, setIsSubModeOn] = useState(false);
   const [visibleTicks, setVisibleTicks] = useState([]);
 
+  const [temperatureData, setTemperatureData] = useState([]);
+  const [humidityData, setHumidityData] = useState([]);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(true);
+
   const parseDate = timeParse("%d/%m/%Y - %I:%M %p");
 
   const getTimelineData = async () => {
@@ -93,7 +102,7 @@ export default function Home() {
         sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
         startDate: nativeData.startDate ?? domain.startDate,
       };
-      sendToReactNative("data", body, "-----------from web body");
+      // sendToReactNative("data", body, "-----------from web body");
       const data = await getZoomableData(body);
 
       console.log(data);
@@ -112,18 +121,14 @@ export default function Home() {
         });
         setData(modifiedTimelineData);
 
-        console.log({
-          startDate: parseDate(timlineData[0]?.from)!,
-          endDate: parseDate(timlineData[timlineData.length - 1]?.to)!,
-        });
-        sendToReactNative(
-          "data",
-          {
-            from: parseDate(timlineData[0]?.from)!,
-            to: parseDate(timlineData[timlineData.length - 1]?.to)!,
-          },
-          "-----------from web"
-        );
+        // sendToReactNative(
+        //   "data",
+        //   {
+        //     from: parseDate(timlineData[0]?.from)!,
+        //     to: parseDate(timlineData[timlineData.length - 1]?.to)!,
+        //   },
+        //   "-----------from web"
+        // );
       }
     } catch (err) {
     } finally {
@@ -136,6 +141,7 @@ export default function Home() {
 
   useEffect(() => {
     if (currentInterval && visibleRange.start && visibleRange.end) {
+      sendToReactNative("data", null, "----------------called the chart data");
       const {
         data: generateData,
         startInserted,
@@ -145,9 +151,16 @@ export default function Home() {
         visibleRange.end,
         currentInterval
       );
-      setLineChartData(generateData);
+      sendToReactNative("data", visibleRange, "------------range");
+      // setLineChartData(generateData);
+      const chartLabels = generateData.map((item) => item.time);
+      debouncedMachineAnalysis({
+        body: { sensorId: nativeData.sensorId, timeSlots: chartLabels },
+        range: visibleRange,
+        currentInterval,
+      });
     }
-  }, [visibleRange]);
+  }, [visibleRange.start, visibleRange.end, currentInterval]);
 
   // useEffect(() => {
   //   if (!loading) {
@@ -160,7 +173,7 @@ export default function Home() {
       setIsLoadingSpectrogram(true);
       try {
         const data: any = await getSpectrogram(body);
-        sendToReactNative("data", data, null);
+        // sendToReactNative("data", data, null);
 
         if (data?.success) {
           setSpectrogram(`data:image/png;base64,${data.image}`);
@@ -177,6 +190,74 @@ export default function Home() {
   const debouncedSpectrogram = useCallback(
     throttle((q) => {
       callGetSpectrogramApi(q);
+    }, 350),
+    []
+  );
+
+  const callGetMachineAnalysis = useCallback(
+    async (data: any) => {
+      try {
+        setLoadingAnalysis(true);
+
+        const res: any = await getMachineAnalysisData(data.body);
+        sendToReactNative("data", res, "--------machine analysis data");
+        if (res.success) {
+          // setHumidityData(data?.sensorData?.humidity);
+          // setTemperatureData(data.sensorData.temperature);
+          // sendToReactNative("data", data.sensorData.temperature, null);
+          const tempData = res.sensorData.temperature;
+          const humidityData = res.sensorData.humidity;
+          const range = data.range;
+          // sendToReactNative(
+          //   "data",
+          //   res.sensorData.temperature,
+          //   "--------humdata"
+          // );
+          // sendToReactNative(
+          //   "data",
+          //   res.sensorData.humidity,
+          //   `---------tempdata ${(range.start, range.end, currentInterval)}`
+          // );
+
+          const {
+            data: tickData,
+            startInserted,
+            endInserted,
+          } = generateTimeSeriesData(
+            range.start!,
+            range.end!,
+            data.currentInterval
+          );
+          sendToReactNative(
+            "data",
+            tickData,
+            "-------------data for linechart"
+          );
+          const modifiedData = combineTempHumidity(tempData, humidityData).map(
+            (item: any, idx: number) => ({
+              ...item,
+              time: tickData[idx].time,
+              timestamp: tickData[idx].timestamp,
+            })
+          );
+          sendToReactNative(
+            "data",
+            `${modifiedData.length}-----${tickData.length}`,
+            "-------------data for generated"
+          );
+          setLineChartData(modifiedData);
+        }
+      } catch (err) {
+      } finally {
+        setLoadingAnalysis(false);
+      }
+    },
+    [visibleRange.start, visibleRange.end, currentInterval]
+  );
+
+  const debouncedMachineAnalysis = useCallback(
+    throttle((q) => {
+      callGetMachineAnalysis(q);
     }, 350),
     []
   );
@@ -214,9 +295,10 @@ export default function Home() {
   return (
     <div className="px-0">
       <div>
-        <h1 className="text-2xl">Data Coming from webview</h1>
-        {JSON.stringify(nativeData)}
-        {spectrogram}
+        {/* <h1 className="text-2xl">Data Coming from webview</h1> */}
+        {/* {JSON.stringify(nativeData)} */}
+        {/* {spectrogram} */}
+        {/* {JSON.stringify(temperatureData)} */}
       </div>
       <div className="py-2.5 mx-11.5 border-t border-[#8D8A9D] bg-lavenderMistLight px-3 flex justify-between hidden">
         <div className="text-sm text-black-primary">{getHeaderDate()}</div>
@@ -299,7 +381,23 @@ export default function Home() {
           setCurrentInterval(data.currentInterval);
           setVisibleTicks(data.visibleTicks);
         }}
-        onVisibleRangeChange={(data) => setVisibleRange(data)}
+        onVisibleRangeChange={(data) =>
+          setVisibleRange((prev: any) => {
+            const prevStart = prev.start
+              ? new Date(prev.start).getTime()
+              : null;
+            const prevEnd = prev.end ? new Date(prev.end).getTime() : null;
+
+            const newStart = new Date(data.start).getTime();
+            const newEnd = new Date(data.end).getTime();
+
+            if (prevStart === newStart && prevEnd === newEnd) {
+              return prev; // DO NOT UPDATE → prevents effect from firing
+            }
+
+            return data; // Only update if actual timestamp changed
+          })
+        }
         timelineConfig={{
           scrollTo: "end",
           needTwoLineLabel: true,
@@ -363,8 +461,8 @@ export default function Home() {
         </div>
 
         <div>
-          {loading ? (
-            <div className="px-11">
+          {loadingAnalysis || loading ? (
+            <div className="px-11 relative">
               <Skeleton className="h-[260px] w-full rounded-none" />
             </div>
           ) : (
