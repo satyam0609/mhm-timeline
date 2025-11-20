@@ -1,6 +1,5 @@
 "use client";
 import DualAxisChart from "@/components/dualAsixLineChart";
-import ZoomableTimelineDebug from "@/components/timeline-debug";
 import { Checkbox } from "@/components/ui/checkbox";
 import { COLORS } from "@/constants/color";
 import {
@@ -10,7 +9,6 @@ import {
   verifyWebToken,
 } from "@/lib/apis/machine";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks/useRedux";
-import { setToken } from "@/lib/store/slices/auth-slice";
 import {
   combineTempHumidity,
   generateTimeSeriesData,
@@ -18,7 +16,7 @@ import {
 import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
 import { timeFormat, timeParse } from "d3";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -26,13 +24,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import NewZoomableTimeline from "@/components/new-timeline";
-import ZoomableTimeline from "@/components/timeline6";
-import ZoomableTimelineV1 from "@/components/timelinev1";
+
 import ZoomableTimelineV2 from "@/components/timelinev2";
 import throttle from "lodash.throttle";
 import { Skeleton } from "@/components/ui/skeleton";
-import { timeStamp } from "console";
 
 const blockColors: Record<number, string> = {
   1: "#9999d6",
@@ -46,13 +41,10 @@ const blockColors: Record<number, string> = {
 };
 
 export default function Home() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { token } = useAppSelector((state) => state.auth);
   const { data: nativeData, sendToReactNative } = useReactNativeBridge({
     callGetSpectrogram: (data: any) => debouncedSpectrogram(data),
   });
-  const searchParams = useSearchParams();
-  const dispatch = useAppDispatch();
 
   const [loading, setLoading] = useState(true);
 
@@ -71,6 +63,7 @@ export default function Home() {
       color: number | string;
     }[]
   >([]);
+  const [isNormalSubMode, setIsNormalSubmode] = useState(false);
 
   const [visibleRange, setVisibleRange] = useState({
     start: null,
@@ -85,7 +78,7 @@ export default function Home() {
   const [lineChartData, setLineChartData] = useState<any[]>([]);
   const [showTemperature, setShowTemperature] = useState(true);
   const [showHumidity, setShowHumidity] = useState(true);
-  const [isSubModeOn, setIsSubModeOn] = useState(false);
+
   const [visibleTicks, setVisibleTicks] = useState([]);
 
   const [temperatureData, setTemperatureData] = useState([]);
@@ -93,6 +86,11 @@ export default function Home() {
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
 
   const parseDate = timeParse("%d/%m/%Y - %I:%M %p");
+
+  const getColor = (code: number) =>
+    !isNormalSubMode && [2, 3, 4, 5].includes(code)
+      ? COLORS.jade
+      : blockColors[code];
 
   const getTimelineData = async () => {
     try {
@@ -102,24 +100,20 @@ export default function Home() {
         sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
         startDate: nativeData.startDate ?? domain.startDate,
       };
-      // sendToReactNative("data", body, "-----------from web body");
+      sendToReactNative("data", body, "-----------from web body");
       const data = await getZoomableData(body);
 
       console.log(data);
       if (data.success) {
-        const timlineData = data.data;
-        const modifiedTimelineData = timlineData.map((item: any) => ({
-          start: parseDate(item.from),
-          end: parseDate(item.to),
-          color: blockColors[item.color],
-        }));
-        console.log(modifiedTimelineData, "--------------modified");
+        const timelineData = data.data;
+
+        // console.log(modifiedTimelineData, "--------------modified");
         // sendToReactNative("data", modifiedTimelineData, null);
         setDomain({
-          startDate: parseDate(timlineData[0]?.from)!,
-          endDate: parseDate(timlineData[timlineData.length - 1]?.to)!,
+          startDate: parseDate(timelineData[0]?.from)!,
+          endDate: parseDate(timelineData[timelineData.length - 1]?.to)!,
         });
-        setData(modifiedTimelineData);
+        setData(timelineData);
 
         // sendToReactNative(
         //   "data",
@@ -141,7 +135,7 @@ export default function Home() {
 
   useEffect(() => {
     if (currentInterval && visibleRange.start && visibleRange.end) {
-      sendToReactNative("data", null, "----------------called the chart data");
+      // sendToReactNative("data", null, "----------------called the chart data");
       const {
         data: generateData,
         startInserted,
@@ -151,13 +145,21 @@ export default function Home() {
         visibleRange.end,
         currentInterval
       );
-      sendToReactNative("data", visibleRange, "------------range");
+      // sendToReactNative("data", visibleRange, "------------range");
       // setLineChartData(generateData);
       const chartLabels = generateData.map((item) => item.time);
       debouncedMachineAnalysis({
         body: { sensorId: nativeData.sensorId, timeSlots: chartLabels },
         range: visibleRange,
         currentInterval,
+      });
+      debouncedSpectrogram({
+        // sensorId: nativeData.sensorId,
+        id: nativeData.sensorId,
+        days: nativeData.selectedDays,
+        startDate: visibleRange.start,
+        endDate: visibleRange.end,
+        startTimeLine: nativeData.startDate,
       });
     }
   }, [visibleRange.start, visibleRange.end, currentInterval]);
@@ -172,8 +174,10 @@ export default function Home() {
     async (body: any) => {
       setIsLoadingSpectrogram(true);
       try {
+        // sendToReactNative("data", body, "------------this is spectrogram body");
+
         const data: any = await getSpectrogram(body);
-        // sendToReactNative("data", data, null);
+        // sendToReactNative("data", data, "------------this is spectrogram");
 
         if (data?.success) {
           setSpectrogram(`data:image/png;base64,${data.image}`);
@@ -196,11 +200,13 @@ export default function Home() {
 
   const callGetMachineAnalysis = useCallback(
     async (data: any) => {
+      setLineChartData([]);
       try {
         setLoadingAnalysis(true);
+        // sendToReactNative("data", data, "--------machine analysis body");
 
         const res: any = await getMachineAnalysisData(data.body);
-        sendToReactNative("data", res, "--------machine analysis data");
+        // sendToReactNative("data", res, "--------machine analysis data");
         if (res.success) {
           // setHumidityData(data?.sensorData?.humidity);
           // setTemperatureData(data.sensorData.temperature);
@@ -208,6 +214,7 @@ export default function Home() {
           const tempData = res.sensorData.temperature;
           const humidityData = res.sensorData.humidity;
           const range = data.range;
+
           // sendToReactNative(
           //   "data",
           //   res.sensorData.temperature,
@@ -219,6 +226,9 @@ export default function Home() {
           //   `---------tempdata ${(range.start, range.end, currentInterval)}`
           // );
 
+          setTemperatureData(tempData);
+          setHumidityData(humidityData);
+
           const {
             data: tickData,
             startInserted,
@@ -228,11 +238,11 @@ export default function Home() {
             range.end!,
             data.currentInterval
           );
-          sendToReactNative(
-            "data",
-            tickData,
-            "-------------data for linechart"
-          );
+          // sendToReactNative(
+          //   "data",
+          //   tickData,
+          //   "-------------data for linechart"
+          // );
           const modifiedData = combineTempHumidity(tempData, humidityData).map(
             (item: any, idx: number) => ({
               ...item,
@@ -240,11 +250,11 @@ export default function Home() {
               timestamp: tickData[idx].timestamp,
             })
           );
-          sendToReactNative(
-            "data",
-            `${modifiedData.length}-----${tickData.length}`,
-            "-------------data for generated"
-          );
+          // sendToReactNative(
+          //   "data",
+          //   `${modifiedData.length}-----${tickData.length}`,
+          //   "-------------data for generated"
+          // );
           setLineChartData(modifiedData);
         }
       } catch (err) {
@@ -262,11 +272,13 @@ export default function Home() {
     []
   );
 
-  const getHeaderDate = useCallback(() => {
-    return `${timeFormat("%B %d, %Y")(domain.startDate!)} - ${timeFormat(
-      "%B %d, %Y"
-    )(domain.endDate!)}`;
-  }, [domain]);
+  const modifiedTimelineData = useMemo(() => {
+    return data.map((item: any) => ({
+      start: parseDate(item.from),
+      end: parseDate(item.to),
+      color: getColor(item.color),
+    }));
+  }, [data, isNormalSubMode]);
 
   // useEffect(() => {
   //   checkToken();
@@ -274,15 +286,16 @@ export default function Home() {
 
   useEffect(() => {
     if (token) {
-      console.log(
-        "fetching data,",
-        token,
-        nativeData.startDate,
-        nativeData.endDate,
-        nativeData.sensorId
-      );
+      // console.log(
+      //   "fetching data,",
+      //   token,
+      //   nativeData.startDate,
+      //   nativeData.endDate,
+      //   nativeData.sensorId
+      // );
       getTimelineData();
       debouncedSpectrogram({
+        // sensorId: nativeData.sensorId,
         id: nativeData.sensorId,
         days: nativeData.selectedDays,
         startDate: nativeData.startDate,
@@ -295,36 +308,11 @@ export default function Home() {
   return (
     <div className="px-0">
       <div>
+        {currentInterval}
         {/* <h1 className="text-2xl">Data Coming from webview</h1> */}
         {/* {JSON.stringify(nativeData)} */}
-        {/* {spectrogram} */}
-        {/* {JSON.stringify(temperatureData)} */}
-      </div>
-      <div className="py-2.5 mx-11.5 border-t border-[#8D8A9D] bg-lavenderMistLight px-3 flex justify-between hidden">
-        <div className="text-sm text-black-primary">{getHeaderDate()}</div>
-        <div className="flex gap-4">
-          <div className="flex gap-2 items-center">
-            <Checkbox
-              className="h-3 w-3"
-              id={"sub-mode"}
-              checked={isSubModeOn}
-              onCheckedChange={(val) => setIsSubModeOn(!!val)}
-            />
-            <label htmlFor="sub-mode" className="text-sm text-black-primary">
-              Normal Sub-Mode
-            </label>
-          </div>
-          <Select>
-            <SelectTrigger className="w-[100px]! bg-white">
-              <SelectValue placeholder="Zoom" />
-            </SelectTrigger>
-            <SelectContent align="end" className="w-[100px]!">
-              <SelectItem value="light">1hr</SelectItem>
-              <SelectItem value="dark">2hr</SelectItem>
-              <SelectItem value="system">3hr</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* {spectrogram}
+        {JSON.stringify(isNormalSubMode)} */}
       </div>
 
       {/* <div className="">
@@ -374,9 +362,10 @@ export default function Home() {
 
       <ZoomableTimelineV2
         loading={loading}
+        loadingSpectrogram={isLoadingSpectrogram || loading}
         startDate={domain.startDate!}
         endDate={domain.endDate!}
-        data={data}
+        data={modifiedTimelineData}
         onZoom={(data) => {
           setCurrentInterval(data.currentInterval);
           setVisibleTicks(data.visibleTicks);
@@ -407,6 +396,11 @@ export default function Home() {
           sendToReactNative("action", null, "openCalendar")
         }
         spectrogram={spectrogram}
+        onModeChange={(val) => {
+          sendToReactNative("data", val, "--------this is mode value");
+          setIsNormalSubmode(val);
+        }}
+        isNormalSubMode={isNormalSubMode}
       />
 
       {/* <div>
@@ -442,8 +436,8 @@ export default function Home() {
                 checked={showHumidity}
                 onCheckedChange={(val) => setShowHumidity(!!val)}
               />
-              <label htmlFor={"humidity"} className="text-sm text-stratos">
-                Humidity
+              <label htmlFor={"humidity"} className="text-xs text-stratos">
+                Humidity (%)
               </label>
             </div>
             <div className="flex gap-2 items-center">
@@ -453,8 +447,8 @@ export default function Home() {
                 checked={showTemperature}
                 onCheckedChange={(val) => setShowTemperature(!!val)}
               />
-              <label htmlFor="temp" className="text-sm text-stratos">
-                Temperature
+              <label htmlFor="temp" className="text-xs text-stratos">
+                Temperature (°C)
               </label>
             </div>
           </div>

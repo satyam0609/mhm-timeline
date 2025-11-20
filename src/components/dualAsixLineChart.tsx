@@ -121,7 +121,7 @@ const CustomTick = ({
   x: number;
   y: number;
   payload: { value: number };
-  visibleLabelTicks?: string[]; // date strings like "2025-07-01T00:00:00Z"
+  visibleLabelTicks?: string[];
 }) => {
   const date = new Date(payload.value);
   const timestamp = date.getTime();
@@ -141,6 +141,14 @@ const CustomTick = ({
 
   return (
     <g transform={`translate(${x},${y})`}>
+      {/* <line
+        x1={0}
+        y1={0}
+        x2={0}
+        y2={8} // increase tick height
+        stroke={COLORS.black}
+        strokeWidth={1.5} // tick stroke thickness
+      /> */}
       <text textAnchor="middle" fill={COLORS.black} fontSize={12}>
         <tspan x={0} dy="1.2em">
           {timeLabel}
@@ -216,13 +224,18 @@ export default function DualAxisChart({
             // tick={{ fontSize: 12 }}
             tickMargin={10}
             axisLine={false}
+            tickLine={{
+              stroke: COLORS.black, // color
+              strokeWidth: 1.5, // tick thickness
+            }}
+            tickSize={10}
           />
 
           <YAxis
             yAxisId="right"
             orientation="right"
             stroke={COLORS.darkViolet}
-            tick={{ fontSize: 14 }}
+            tick={{ fontSize: 10 }}
             tickCount={6}
             tickFormatter={(value) => `${value}°C`}
             domain={[
@@ -234,7 +247,7 @@ export default function DualAxisChart({
           <YAxis
             yAxisId="left"
             stroke={COLORS.darkgreen}
-            tick={{ fontSize: 14 }}
+            tick={{ fontSize: 10 }}
             tickCount={6}
             tickFormatter={(value) => `${value}%`}
             domain={[

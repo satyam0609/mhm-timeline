@@ -12,7 +12,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const webToken = searchParams.get("token");
   // const webToken =
-  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzJiYjFlMzgzYTNhMjA0OGFhMWFhZTYiLCJpYXQiOjE3NjMzNjQ4MjIsImV4cCI6MTc2MzM3MjAyMn0.f6CVv2r1NKue_cqb6nN_Sehd-o8JI2NLLgCPz6kPyts";
+  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzJiYjFlMzgzYTNhMjA0OGFhMWFhZTYiLCJpYXQiOjE3NjM2MjYxMDUsImV4cCI6MTc2MzYzMzMwNX0.lvhQr6jJ0SnvK33UC3TUwh6cKhwNWRTDUOQjSgenBQg";
   const { token, isVerified } = useAppSelector((state) => state.auth);
   const [isChecking, setIsChecking] = useState(false);
 

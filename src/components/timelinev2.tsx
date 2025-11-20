@@ -25,6 +25,7 @@ import {
 import { Checkbox } from "./ui/checkbox";
 import { Skeleton } from "./ui/skeleton";
 import Image from "next/image";
+import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
 
 type IntervalConfig = {
   key: string;
@@ -108,8 +109,16 @@ interface ZoomRangeConstraint {
   minZoomIntervalKey: string;
 }
 
+// const ZOOM_CONSTRAINTS: ZoomRangeConstraint[] = [
+//   { rangeDays: 3, maxZoomIntervalKey: "5m", minZoomIntervalKey: "3h" },
+//   { rangeDays: 7, maxZoomIntervalKey: "15m", minZoomIntervalKey: "6h" },
+//   { rangeDays: 14, maxZoomIntervalKey: "15m", minZoomIntervalKey: "12h" },
+//   { rangeDays: 27, maxZoomIntervalKey: "30m", minZoomIntervalKey: "1d" },
+//   { rangeDays: 200, maxZoomIntervalKey: "1h", minZoomIntervalKey: "1w" },
+//   { rangeDays: Infinity, maxZoomIntervalKey: "3h", minZoomIntervalKey: "1M" },
+// ];
 const ZOOM_CONSTRAINTS: ZoomRangeConstraint[] = [
-  { rangeDays: 4, maxZoomIntervalKey: "5m", minZoomIntervalKey: "3h" },
+  { rangeDays: 2, maxZoomIntervalKey: "5m", minZoomIntervalKey: "3h" },
   { rangeDays: 7, maxZoomIntervalKey: "5m", minZoomIntervalKey: "6h" },
   { rangeDays: 21, maxZoomIntervalKey: "30m", minZoomIntervalKey: "1d" },
   { rangeDays: 200, maxZoomIntervalKey: "1h", minZoomIntervalKey: "1w" },
@@ -167,6 +176,9 @@ interface ZoomableTimelineProps {
   data?: any[];
   loading?: boolean;
   spectrogram?: string;
+  isNormalSubMode?: boolean;
+  onModeChange?: (mode: boolean) => void;
+  loadingSpectrogram?: boolean;
 }
 
 const ZoomableTimelineV2 = ({
@@ -177,6 +189,8 @@ const ZoomableTimelineV2 = ({
   onVisibleRangeChange = () => {},
   onCalendarClick = () => {},
   onReloadClick = () => {},
+  isNormalSubMode,
+  onModeChange = () => {},
   data = [],
   startDate,
   endDate,
@@ -184,16 +198,21 @@ const ZoomableTimelineV2 = ({
   //   endDate = new Date("2026-09-29T05:59:00.000Z"),
   loading = true,
   spectrogram,
+  loadingSpectrogram,
 }: ZoomableTimelineProps) => {
+  // const { data: nativeData, sendToReactNative } = useReactNativeBridge({});
   const totalDays = useMemo(() => {
     if (!startDate || !endDate) return 0;
     const totalMs = endDate.getTime() - startDate.getTime();
+
     return totalMs / (1000 * 60 * 60 * 24);
   }, [startDate, endDate]);
 
   // Get default initial interval based on range
   const defaultInitialInterval = useMemo(() => {
-    return getDefaultInitialInterval(totalDays);
+    const defaultInterval = getDefaultInitialInterval(totalDays);
+
+    return defaultInterval;
   }, [totalDays]);
   const {
     initialInterval = defaultInitialInterval,
@@ -250,7 +269,10 @@ const ZoomableTimelineV2 = ({
   const lastSelectedIntervalRef = useRef<string>("");
   const gxRef = useRef<any>(null);
   const hasCompletedInitialLoadRef = useRef(false);
-  const isFirstLoadRef = useRef(true);
+  const hasInitialZoomAppliedRef = useRef(false);
+  const isProgrammaticZoomRef = useRef(false);
+  const isZoomingRef = useRef<"in" | "out">("in");
+  const targetKey = useRef<string | null>(null);
 
   useEffect(() => {
     if (!loading) {
@@ -288,6 +310,20 @@ const ZoomableTimelineV2 = ({
     start: startDate!,
     end: endDate!,
   });
+
+  const basePxPerMinRef = useRef(0);
+
+  // 2. Update the ref whenever dependencies change
+  useEffect(() => {
+    if (width === 0 || !startDate || !endDate) return;
+
+    const fullSpanMs = endDate.getTime() - startDate.getTime();
+    const fullWidthPx = width - marginLeft - marginRight;
+    const basePxPerMs = fullWidthPx / fullSpanMs;
+
+    // Store in ref so 'zoomed' can access the latest value anytime
+    basePxPerMinRef.current = basePxPerMs * 60 * 1000;
+  }, [width, startDate, endDate]);
 
   const getHeaderDate = useCallback(() => {
     if (internalLoading) return "Loading...";
@@ -397,55 +433,86 @@ const ZoomableTimelineV2 = ({
   };
 
   const mapZoomToConstraint = (
-    userZoom: any,
-    minConstraintZoom: any,
-    maxConstraintZoom: any
+    userZoom: number,
+    minConstraintZoom: number,
+    maxConstraintZoom: number
   ) => {
-    // User zooms from 1 to maxConstraintZoom
-    // We map this to minConstraintZoom to maxConstraintZoom
-    // Formula: constraintZoom = minConstraintZoom + (userZoom - 1) * (maxConstraintZoom - minConstraintZoom) / (maxConstraintZoom - 1)
-    if (userZoom <= 1) return minConstraintZoom;
-    const mapped =
-      minConstraintZoom +
-      ((userZoom - 1) * (maxConstraintZoom - minConstraintZoom)) /
-        (maxConstraintZoom - 1);
-    return Math.min(mapped, maxConstraintZoom);
+    return d3
+      .scaleLinear()
+      .domain([1, maxConstraintZoom]) // userZoom range
+      .range([minConstraintZoom, maxConstraintZoom]) // constraintZoom range
+      .clamp(true)(userZoom);
   };
 
   const mapConstraintToZoom = (
-    constraintZoom: any,
-    minConstraintZoom: any,
-    maxConstraintZoom: any
+    constraintZoom: number,
+    minConstraintZoom: number,
+    maxConstraintZoom: number
   ) => {
-    if (constraintZoom <= minConstraintZoom) return 1;
-    const mapped =
-      1 +
-      ((constraintZoom - minConstraintZoom) * (maxConstraintZoom - 1)) /
-        (maxConstraintZoom - minConstraintZoom);
-    return Math.min(mapped, maxConstraintZoom);
+    return d3
+      .scaleLinear()
+      .domain([minConstraintZoom, maxConstraintZoom]) // constraint zoom
+      .range([1, maxConstraintZoom]) // user zoom
+      .clamp(true)(constraintZoom);
   };
+
+  // const calculateZoomExtent = () => {
+  //   const constraint = getActiveConstraint();
+  //   const allowedIntervals = getAllowedIntervals(constraint);
+
+  //   const finestInterval = allowedIntervals[0];
+  //   const notFinestInterval = allowedIntervals[allowedIntervals.length - 1];
+
+  //   const fullSpanMs = endDate.getTime() - startDate.getTime();
+  //   const fullWidthPx = width - marginLeft - marginRight;
+  //   const basePxPerMs = fullWidthPx / fullSpanMs;
+  //   const basePxPerMin = basePxPerMs * 60 * 1000;
+
+  //   const maxZoomPxPerMin = MIN_PX_PER_TICK / finestInterval.minutes;
+  //   const maxConstraintZoom = maxZoomPxPerMin / basePxPerMin + 1;
+
+  //   const minZoomPxPerMin = MIN_PX_PER_TICK / notFinestInterval.minutes;
+  //   const minConstraintZoom = minZoomPxPerMin / basePxPerMin;
+
+  //   // Map constraint zoom to user zoom (1 to maxConstraintZoom)
+  //   const userMaxZoom = maxConstraintZoom;
+  //   const userMinZoom = 1;
+
+  //   return {
+  //     userMinZoom,
+  //     userMaxZoom,
+  //     minConstraintZoom,
+  //     maxConstraintZoom,
+  //     constraint,
+  //     basePxPerMin,
+  //   };
+  // };
 
   const calculateZoomExtent = () => {
     const constraint = getActiveConstraint();
     const allowedIntervals = getAllowedIntervals(constraint);
 
+    // Finest = minimum minutes (highest px/min)
     const finestInterval = allowedIntervals[0];
-    const notFinestInterval = allowedIntervals[allowedIntervals.length - 1];
 
-    const fullSpanMs = endDate.getTime() - startDate.getTime();
-    const fullWidthPx = width - marginLeft - marginRight;
-    const basePxPerMs = fullWidthPx / fullSpanMs;
-    const basePxPerMin = basePxPerMs * 60 * 1000;
+    // Coarsest = maximum minutes (lowest px/min)
+    const coarsestInterval = allowedIntervals[allowedIntervals.length - 1];
 
-    const maxZoomPxPerMin = MIN_PX_PER_TICK / finestInterval.minutes;
-    const maxConstraintZoom = maxZoomPxPerMin / basePxPerMin + 1;
+    // px/min needed for each interval
+    const pxPerMinFinest = MIN_PX_PER_TICK / finestInterval.minutes;
+    const pxPerMinCoarsest = MIN_PX_PER_TICK / coarsestInterval.minutes;
 
-    const minZoomPxPerMin = MIN_PX_PER_TICK / notFinestInterval.minutes;
-    const minConstraintZoom = minZoomPxPerMin / basePxPerMin;
+    // Raw constraint zoom values
+    const rawMax = pxPerMinFinest / basePxPerMinRef.current;
+    const rawMin = pxPerMinCoarsest / basePxPerMinRef.current;
 
-    // Map constraint zoom to user zoom (1 to maxConstraintZoom)
-    const userMaxZoom = maxConstraintZoom;
+    // Normalize so min = 1
+    const minConstraintZoom = 1;
+    const maxConstraintZoom = rawMax / rawMin;
+
+    // User zoom exactly mirrors constraint zoom
     const userMinZoom = 1;
+    const userMaxZoom = maxConstraintZoom;
 
     return {
       userMinZoom,
@@ -453,7 +520,6 @@ const ZoomableTimelineV2 = ({
       minConstraintZoom,
       maxConstraintZoom,
       constraint,
-      basePxPerMin,
     };
   };
 
@@ -465,11 +531,6 @@ const ZoomableTimelineV2 = ({
     )
       return;
 
-    const fullSpanMs = endDate.getTime() - startDate.getTime();
-    const fullWidthPx = width - marginLeft - marginRight;
-    const basePxPerMs = fullWidthPx / fullSpanMs;
-    const basePxPerMin = basePxPerMs * 60 * 1000;
-
     const targetInterval = intervals.find((i) => i.key === intervalKey);
     if (!targetInterval) return;
 
@@ -478,7 +539,7 @@ const ZoomableTimelineV2 = ({
 
     // Calculate constraint zoom needed
     const targetPxPerMin = MIN_PX_PER_TICK / targetInterval.minutes;
-    let targetConstraintZoom = targetPxPerMin / basePxPerMin;
+    let targetConstraintZoom = targetPxPerMin / basePxPerMinRef.current;
     targetConstraintZoom = targetConstraintZoom * 1.01;
     targetConstraintZoom = Math.max(
       minConstraintZoom,
@@ -491,27 +552,117 @@ const ZoomableTimelineV2 = ({
       minConstraintZoom,
       maxConstraintZoom
     );
-    targetUserZoom = Math.max(
-      userMinZoom,
-      Math.min(userMaxZoom, targetUserZoom)
+
+    targetUserZoom = Math.min(
+      userMaxZoom,
+      Math.max(userMinZoom, targetUserZoom)
     );
+
+    // --- FINAL PRECISION FIX ---
+    // Round the final calculated user zoom to a high number of decimals (e.g., 8)
+    const PRECISION_FACTOR = 100000000;
+    targetUserZoom =
+      Math.round(targetUserZoom * PRECISION_FACTOR) / PRECISION_FACTOR;
+    // ---------------------------
 
     const pivotSvgX = pivotPositionRef.current + marginLeft;
 
     setSelectedInterval(intervalKey);
 
+    // LOCK the zoomed listener
+    isProgrammaticZoomRef.current = true;
+
     svgSelectionRef.current
       .transition()
       .duration(500)
-      .call(zoomBehaviorRef.current.scaleTo, targetUserZoom, [pivotSvgX, 0]);
+      .call(zoomBehaviorRef.current.scaleTo, targetUserZoom, [pivotSvgX, 0])
+      .on("end", () => {
+        isProgrammaticZoomRef.current = false;
+      });
   };
 
-  const runD3TimelineRender = () => {
-    const fullSpanMs = endDate.getTime() - startDate.getTime();
-    const fullWidthPx = width - marginLeft - marginRight;
-    const basePxPerMs = fullWidthPx / fullSpanMs;
-    const basePxPerMin = basePxPerMs * 60 * 1000;
+  // const handleIntervalChange = (intervalKey: string) => {
+  //   if (
+  //     !zoomBehaviorRef.current ||
+  //     !svgSelectionRef.current ||
+  //     !xScaleRef.current
+  //   )
+  //     return;
 
+  //   targetKey.current = intervalKey;
+  //   const currentInterval = intervals.find(
+  //     (i) => i.key === lastSelectedIntervalRef.current
+  //   );
+  //   const targetInterval = intervals.find((i) => i.key === intervalKey);
+  //   if (currentInterval?.minutes! > targetInterval?.minutes!) {
+  //     isZoomingRef.current = "in";
+  //   } else {
+  //     isZoomingRef.current = "out";
+  //   }
+
+  //   if (!targetInterval) return;
+
+  //   // ALWAYS use the same basePxPerMin used everywhere else
+  //   // const basePxPerMin = basePxPerMinRef.current;
+
+  //   const { userMinZoom, userMaxZoom, minConstraintZoom, maxConstraintZoom } =
+  //     calculateZoomExtent();
+
+  //   // Compute required px/min for this interval
+  //   const targetPxPerMin = MIN_PX_PER_TICK / targetInterval.minutes;
+
+  //   // Convert px/min → constraintZoom
+  //   let targetConstraintZoom = targetPxPerMin / basePxPerMinRef.current;
+
+  //   // Clamp to valid range
+  //   targetConstraintZoom = Math.min(
+  //     maxConstraintZoom,
+  //     Math.max(minConstraintZoom, targetConstraintZoom)
+  //   );
+
+  //   // Convert constraintZoom → userZoom using D3 mapping
+  //   let targetUserZoom = mapConstraintToZoom(
+  //     targetConstraintZoom,
+  //     minConstraintZoom,
+  //     maxConstraintZoom
+  //   );
+
+  //   // Clamp to user zoom range
+  //   targetUserZoom = Math.min(
+  //     userMaxZoom,
+  //     Math.max(userMinZoom, targetUserZoom)
+  //   );
+
+  //   const EPSILON = 0.01; // Tolerance threshold
+
+  //   if (Math.abs(targetUserZoom - userMinZoom) < EPSILON) {
+  //     targetUserZoom = userMinZoom;
+  //   } else if (Math.abs(targetUserZoom - userMaxZoom) < EPSILON) {
+  //     targetUserZoom = userMaxZoom;
+  //   } else {
+  //     // For intermediate values, round to 6 decimal places to kill trailing 0.000000001 noise
+  //     targetUserZoom = Math.round(targetUserZoom * 1000000) / 1000000;
+  //   }
+
+  //   console.log(targetUserZoom, "-----------zoom");
+
+  //   const pivotSvgX = pivotPositionRef.current + marginLeft;
+
+  //   setSelectedInterval(intervalKey);
+
+  //   // Prevent zoomed() from reacting
+  //   isProgrammaticZoomRef.current = true;
+
+  //   svgSelectionRef.current
+  //     .transition()
+  //     .duration(450)
+  //     .call(zoomBehaviorRef.current.scaleTo, targetUserZoom, [pivotSvgX, 0])
+  //     .on("end", () => {
+  //       isProgrammaticZoomRef.current = false;
+  //     });
+  // };
+
+  const runD3TimelineRender = () => {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
@@ -727,30 +878,28 @@ const ZoomableTimelineV2 = ({
       const visibleDomain = xz.domain();
       const visibleMs = visibleDomain[1].getTime() - visibleDomain[0].getTime();
       const visibleDays = visibleMs / (1000 * 60 * 60 * 24);
-      const currentPxPerMin = basePxPerMin * constraintZoom;
+      const currentPxPerMin = basePxPerMinRef.current * constraintZoom;
       const currentInterval = getInterval(currentPxPerMin, activeConstraint);
       const allowedIntervals = getAllowedIntervals(activeConstraint);
       const isIntervalAllowed = allowedIntervals.some(
         (i) => i.key === currentInterval.key
       );
 
-      console.log(
-        Math.abs(userZoom - lastUserZoomRef.current),
-        isIntervalAllowed,
-        "---------zoomed"
-      );
-
-      //   if (
-      //     Math.abs(userZoom - lastUserZoomRef.current) > 0.02 &&
-      //     isIntervalAllowed
-      //   ) {
-      //     setSelectedInterval(currentInterval.key);
-      //     lastSelectedIntervalRef.current = currentInterval.key;
-      //     lastUserZoomRef.current = userZoom;
-      //   }
+      // sendToReactNative(
+      //   "data",
+      //   {
+      //     diff: Math.abs(userZoom - lastUserZoomRef.current),
+      //     userZoom,
+      //     isIntervalAllowed,
+      //     currentInterval,
+      //     currentPxPerMin,
+      //   },
+      //   "---------zoomed--------"
+      // );
 
       if (
         !isScrollingRef.current &&
+        !isProgrammaticZoomRef.current &&
         currentInterval.key !== lastSelectedIntervalRef.current &&
         isIntervalAllowed
       ) {
@@ -758,10 +907,6 @@ const ZoomableTimelineV2 = ({
         lastSelectedIntervalRef.current = currentInterval.key;
         lastUserZoomRef.current = userZoom;
       }
-
-      //   if (isIntervalAllowed) {
-      //     setSelectedInterval(currentInterval.key);
-      //   }
 
       const currentIdx = allowedIntervals.findIndex(
         (i) => i.key === currentInterval.key
@@ -779,13 +924,13 @@ const ZoomableTimelineV2 = ({
 
       if (zoomInInterval) {
         const neededPxPerMin = MIN_PX_PER_TICK / zoomInInterval.minutes;
-        const neededZoom = neededPxPerMin / basePxPerMin;
+        const neededZoom = neededPxPerMin / basePxPerMinRef.current;
         zoomInText = `${zoomInInterval.key} (at ~${neededZoom.toFixed(1)}x)`;
       }
 
       if (zoomOutInterval) {
         const neededPxPerMin = MIN_PX_PER_TICK / zoomOutInterval.minutes;
-        const neededZoom = neededPxPerMin / basePxPerMin;
+        const neededZoom = neededPxPerMin / basePxPerMinRef.current;
         zoomOutText = `${zoomOutInterval.key} (at ~${neededZoom.toFixed(1)}x)`;
       }
 
@@ -945,7 +1090,7 @@ const ZoomableTimelineV2 = ({
 
     const initialIntervalConfig = intervals[initialInterval];
     const targetPxPerMin = MIN_PX_PER_TICK / initialIntervalConfig.minutes;
-    let initialZoomLevel = targetPxPerMin / basePxPerMin;
+    let initialZoomLevel = targetPxPerMin / basePxPerMinRef.current;
 
     initialZoomLevel = Math.max(minZoom, Math.min(maxZoom, initialZoomLevel));
     console.log(
@@ -1026,45 +1171,52 @@ const ZoomableTimelineV2 = ({
     };
 
     // requestAnimationFrame(applyInitialZoom);
+    // if (!hasInitialZoomAppliedRef.current) {
+    //   applyInitialZoom();
+    //   hasInitialZoomAppliedRef.current = true;
+    // }
     applyInitialZoom();
-
-    function updateTimeline(scale: any) {
-      if (!timelineRef.current) return;
-
-      timelineRef.current.innerHTML = "";
-
-      const visibleDomain = scale.domain();
-      const bufferMs =
-        (visibleDomain[1].getTime() - visibleDomain[0].getTime()) * 0.2;
-      const minVisible = new Date(visibleDomain[0].getTime() - bufferMs);
-      const maxVisible = new Date(visibleDomain[1].getTime() + bufferMs);
-
-      colorBlocks.forEach((block) => {
-        if (block.end < minVisible || block.start > maxVisible) {
-          return;
-        }
-
-        const startPos = scale(block.start);
-        const endPos = scale(block.end);
-        const leftPos = startPos - marginLeft;
-        const blockWidth = endPos - startPos;
-
-        if (endPos >= marginLeft && startPos <= width - marginRight) {
-          const div = document.createElement("div");
-          div.style.position = "absolute";
-          div.style.left = `${leftPos}px`;
-          div.style.width = `${blockWidth}px`;
-          div.style.height = "100%";
-          div.style.backgroundColor = block.color;
-
-          div.style.boxSizing = "border-box";
-          timelineRef.current!.appendChild(div);
-        }
-      });
-    }
 
     updateTimeline(x);
   };
+  function updateTimeline(scale: any) {
+    if (!timelineRef.current) return;
+
+    timelineRef.current.innerHTML = "";
+
+    const visibleDomain = scale.domain();
+    const bufferMs =
+      (visibleDomain[1].getTime() - visibleDomain[0].getTime()) * 0.2;
+    const minVisible = new Date(visibleDomain[0].getTime() - bufferMs);
+    const maxVisible = new Date(visibleDomain[1].getTime() + bufferMs);
+
+    colorBlocks.forEach((block) => {
+      if (block.end < minVisible || block.start > maxVisible) {
+        return;
+      }
+
+      const startPos = scale(block.start);
+      const endPos = scale(block.end);
+      const leftPos = startPos - marginLeft;
+      const blockWidth = endPos - startPos;
+
+      if (endPos >= marginLeft && startPos <= width - marginRight) {
+        const div = document.createElement("div");
+        div.style.position = "absolute";
+        div.style.left = `${leftPos}px`;
+        div.style.width = `${blockWidth}px`;
+        div.style.height = "100%";
+        div.style.backgroundColor = block.color;
+
+        div.style.boxSizing = "border-box";
+        timelineRef.current!.appendChild(div);
+      }
+    });
+  }
+
+  useEffect(() => {
+    updateTimeline(xScaleRef.current);
+  }, [isNormalSubMode]);
 
   useEffect(() => {
     if (internalLoading) return;
@@ -1076,7 +1228,11 @@ const ZoomableTimelineV2 = ({
         runD3TimelineRender();
       });
     });
-  }, [colorBlocks, width, internalLoading]);
+  }, [startDate, endDate, width, internalLoading]);
+
+  useEffect(() => {
+    hasInitialZoomAppliedRef.current = false;
+  }, [startDate, endDate]);
 
   function updatePivotDateFromScale(position: number) {
     if (xScaleRef.current) {
@@ -1221,8 +1377,10 @@ const ZoomableTimelineV2 = ({
               <Checkbox
                 className="h-3 w-3"
                 id={"sub-mode"}
-                checked={true}
-                onCheckedChange={(val) => {}}
+                checked={isNormalSubMode}
+                onCheckedChange={(val) => {
+                  onModeChange(!!val);
+                }}
               />
               <label htmlFor="sub-mode" className="text-xs text-black-primary">
                 Normal Sub-Mode
@@ -1408,15 +1566,18 @@ const ZoomableTimelineV2 = ({
               style={{ paddingLeft: marginLeft, paddingRight: marginRight }}
             >
               {/* <div className="bg-yellow-200 h-full w-full"></div> */}
-              <img
-                src={
-                  spectrogram
-                    ? spectrogram
-                    : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSGPWMib4I2ED0xASlhVK2ECkwOWh5jI9cfWQ&s"
-                }
-                alt="spectrogram image"
-                className="w-full h-full"
-              />
+              {loadingSpectrogram ? (
+                <Skeleton className="h-full w-full rounded-none" />
+              ) : (
+                ""
+              )}
+              {spectrogram && (
+                <img
+                  src={spectrogram}
+                  alt="spectrogram image"
+                  className="w-full h-full"
+                />
+              )}
             </div>
           </div>
           <button
