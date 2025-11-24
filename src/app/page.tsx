@@ -99,7 +99,15 @@ export default function Home() {
         const timelineData = data.data;
 
         // console.log(modifiedTimelineData, "--------------modified");
-        // sendToReactNative("data", modifiedTimelineData, null);
+        // sendToReactNative(
+        //   "data",
+        //   {
+        //     startDate: parseDate(timelineData[0]?.from)!,
+        //     endDate: parseDate(timelineData[timelineData.length - 1]?.to)!,
+        //     timelineData,
+        //   },
+        //   "---------timeline data from web-----------"
+        // );
         setDomain({
           startDate: parseDate(timelineData[0]?.from)!,
           endDate: parseDate(timelineData[timelineData.length - 1]?.to)!,
@@ -312,13 +320,6 @@ export default function Home() {
 
   useEffect(() => {
     if (token) {
-      // console.log(
-      //   "fetching data,",
-      //   token,
-      //   nativeData.startDate,
-      //   nativeData.endDate,
-      //   nativeData.sensorId
-      // );
       getTimelineData({
         endDate: nativeData.endDate,
         sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",

@@ -1782,7 +1782,7 @@ const ZoomableTimelineV2 = ({
             </div>
             {/* place for image*/}
             <div
-              className={`h-32 w-full relative]`}
+              className={`h-32 w-full relative`}
               style={{ paddingLeft: marginLeft, paddingRight: marginRight }}
             >
               {/* <div className="bg-yellow-200 h-full w-full"></div> */}
