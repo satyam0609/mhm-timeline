@@ -6,6 +6,8 @@ export type RNMessageData = {
   action: string | null;
 };
 
+const toDateOrNull = (value: any) => (value ? new Date(value) : null);
+
 export function useReactNativeBridge(actions: Record<string, Function> = {}) {
   const initialStart = window.initialDates?.startDate
     ? new Date(window.initialDates.startDate)
@@ -45,11 +47,12 @@ export function useReactNativeBridge(actions: Record<string, Function> = {}) {
       console.log("✅ Received from React Native:", msg);
 
       const { type, data: payload, action } = msg;
-
+      // console.log(payload);
       if (type === "data" && payload) {
         const updated: any = { ...payload };
-        if (payload.startDate) updated.startDate = new Date(payload.startDate);
-        if (payload.endDate) updated.endDate = new Date(payload.endDate);
+        updated.startDate = toDateOrNull(payload.startDate);
+        updated.endDate = toDateOrNull(payload.endDate);
+        sendToReactNative("data", updated, "-------updated data");
         setData((prev) => ({ ...prev, ...updated }));
       }
 

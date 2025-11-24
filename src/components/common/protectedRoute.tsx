@@ -11,6 +11,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const webToken = searchParams.get("token");
+  // const webToken = null;
   // const webToken =
   //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzJiYjFlMzgzYTNhMjA0OGFhMWFhZTYiLCJpYXQiOjE3NjM2MjYxMDUsImV4cCI6MTc2MzYzMzMwNX0.lvhQr6jJ0SnvK33UC3TUwh6cKhwNWRTDUOQjSgenBQg";
   const { token, isVerified } = useAppSelector((state) => state.auth);
@@ -20,15 +21,15 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const verifyToken = async () => {
+      if (!webToken) {
+        router.replace("/not-found");
+        return;
+      }
       if (IGNORED_ROUTES.includes(pathname)) return;
       // ⭐ If already verified or we already have token → allow access
       if (isVerified || token) return;
 
       // ⭐ If NO web token and user is not verified → block access
-      if (!webToken) {
-        router.replace("/not-found");
-        return;
-      }
 
       setIsChecking(true);
       try {

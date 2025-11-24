@@ -150,7 +150,7 @@ const CustomTick = ({
         strokeWidth={1.5} // tick stroke thickness
       /> */}
       <text textAnchor="middle" fill={COLORS.black} fontSize={12}>
-        <tspan x={0} dy="1.2em">
+        <tspan x={0} dy="0.2em">
           {timeLabel}
         </tspan>
         <tspan x={0} dy="1.2em">

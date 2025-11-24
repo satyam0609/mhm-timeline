@@ -63,7 +63,7 @@ export default function Home() {
       color: number | string;
     }[]
   >([]);
-  const [isNormalSubMode, setIsNormalSubmode] = useState(false);
+  const [isNormalSubMode, setIsNormalSubmode] = useState(true);
 
   const [visibleRange, setVisibleRange] = useState({
     start: null,
@@ -87,19 +87,10 @@ export default function Home() {
 
   const parseDate = timeParse("%d/%m/%Y - %I:%M %p");
 
-  const getColor = (code: number) =>
-    !isNormalSubMode && [2, 3, 4, 5].includes(code)
-      ? COLORS.jade
-      : blockColors[code];
-
-  const getTimelineData = async () => {
+  const getTimelineData = async (body: any) => {
     try {
       setLoading(true);
-      const body = {
-        endDate: nativeData.endDate ?? domain.endDate,
-        sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
-        startDate: nativeData.startDate ?? domain.startDate,
-      };
+
       sendToReactNative("data", body, "-----------from web body");
       const data = await getZoomableData(body);
 
@@ -136,6 +127,9 @@ export default function Home() {
   useEffect(() => {
     if (currentInterval && visibleRange.start && visibleRange.end) {
       // sendToReactNative("data", null, "----------------called the chart data");
+      setLoadingAnalysis(true);
+      setIsLoadingSpectrogram(true);
+
       const {
         data: generateData,
         startInserted,
@@ -145,7 +139,18 @@ export default function Home() {
         visibleRange.end,
         currentInterval
       );
-      // sendToReactNative("data", visibleRange, "------------range");
+      sendToReactNative(
+        "data",
+        {
+          visibleRange,
+          id: nativeData.sensorId,
+          days: nativeData.selectedDays,
+          startDate: visibleRange.start,
+          endDate: visibleRange.end,
+          startTimeLine: visibleRange.start,
+        },
+        "------------range"
+      );
       // setLineChartData(generateData);
       const chartLabels = generateData.map((item) => item.time);
       debouncedMachineAnalysis({
@@ -159,7 +164,7 @@ export default function Home() {
         days: nativeData.selectedDays,
         startDate: visibleRange.start,
         endDate: visibleRange.end,
-        startTimeLine: nativeData.startDate,
+        startTimeLine: visibleRange.start,
       });
     }
   }, [visibleRange.start, visibleRange.end, currentInterval]);
@@ -238,11 +243,7 @@ export default function Home() {
             range.end!,
             data.currentInterval
           );
-          // sendToReactNative(
-          //   "data",
-          //   tickData,
-          //   "-------------data for linechart"
-          // );
+
           const modifiedData = combineTempHumidity(tempData, humidityData).map(
             (item: any, idx: number) => ({
               ...item,
@@ -250,11 +251,7 @@ export default function Home() {
               timestamp: tickData[idx].timestamp,
             })
           );
-          // sendToReactNative(
-          //   "data",
-          //   `${modifiedData.length}-----${tickData.length}`,
-          //   "-------------data for generated"
-          // );
+
           setLineChartData(modifiedData);
         }
       } catch (err) {
@@ -268,17 +265,46 @@ export default function Home() {
   const debouncedMachineAnalysis = useCallback(
     throttle((q) => {
       callGetMachineAnalysis(q);
-    }, 350),
+    }, 2000),
     []
   );
 
-  const modifiedTimelineData = useMemo(() => {
-    return data.map((item: any) => ({
+  const getModifiedTimelineData = (isNormal: boolean, rawData: any[]) => {
+    const getColor = (code: number) =>
+      !isNormal && [2, 3, 4, 5].includes(code)
+        ? COLORS.jade
+        : blockColors[code];
+    return rawData.map((item: any) => ({
       start: parseDate(item.from),
       end: parseDate(item.to),
       color: getColor(item.color),
     }));
+  };
+  const [calculatedTimelineData, setCalculatedTimelineData] = useState<any[]>(
+    []
+  );
+  useEffect(() => {
+    if (data.length > 0) {
+      // Initial calculation
+
+      const initialData = getModifiedTimelineData(isNormalSubMode, data);
+      setCalculatedTimelineData(initialData);
+    }
   }, [data, isNormalSubMode]);
+
+  const handleModeChange = useCallback(
+    (val: boolean) => {
+      // 1. Immediately calculate the new data using the 'val' (new state)
+      const newData = getModifiedTimelineData(val, data);
+
+      // 2. Update the timeline data state immediately
+      setCalculatedTimelineData(newData);
+
+      // 3. Update the mode state (this state is now mostly for the checkboxes/UI)
+      setIsNormalSubmode(val);
+    },
+    [data] // Depend only on 'data' for the recalculation
+  );
 
   // useEffect(() => {
   //   checkToken();
@@ -293,14 +319,10 @@ export default function Home() {
       //   nativeData.endDate,
       //   nativeData.sensorId
       // );
-      getTimelineData();
-      debouncedSpectrogram({
-        // sensorId: nativeData.sensorId,
-        id: nativeData.sensorId,
-        days: nativeData.selectedDays,
-        startDate: nativeData.startDate,
+      getTimelineData({
         endDate: nativeData.endDate,
-        startTimeLine: nativeData.startDate,
+        sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
+        startDate: nativeData.startDate,
       });
     }
   }, [token, nativeData.startDate, nativeData.endDate, nativeData.sensorId]);
@@ -308,7 +330,7 @@ export default function Home() {
   return (
     <div className="px-0">
       <div>
-        {currentInterval}
+        {/* {currentInterval} */}
         {/* <h1 className="text-2xl">Data Coming from webview</h1> */}
         {/* {JSON.stringify(nativeData)} */}
         {/* {spectrogram}
@@ -365,7 +387,7 @@ export default function Home() {
         loadingSpectrogram={isLoadingSpectrogram || loading}
         startDate={domain.startDate!}
         endDate={domain.endDate!}
-        data={modifiedTimelineData}
+        data={calculatedTimelineData}
         onZoom={(data) => {
           setCurrentInterval(data.currentInterval);
           setVisibleTicks(data.visibleTicks);
@@ -395,11 +417,12 @@ export default function Home() {
         onCalendarClick={() =>
           sendToReactNative("action", null, "openCalendar")
         }
-        spectrogram={spectrogram}
-        onModeChange={(val) => {
-          sendToReactNative("data", val, "--------this is mode value");
-          setIsNormalSubmode(val);
+        onReloadClick={() => {
+          setIsNormalSubmode(true);
+          sendToReactNative("action", null, "reset");
         }}
+        spectrogram={spectrogram}
+        onModeChange={handleModeChange}
         isNormalSubMode={isNormalSubMode}
       />
 
