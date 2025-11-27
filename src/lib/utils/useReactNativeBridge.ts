@@ -148,29 +148,65 @@ export function useReactNativeBridge(actionHandlers: ActionHandlers = {}) {
   }, []);
 
   // Set up message listener
+  // useEffect(() => {
+  //   window.receiveFromReactNative = (incoming: RNMessageData) => {
+  //     console.log("✅ Received from React Native:", incoming);
+
+  //     const { type, data: payload, action } = incoming;
+
+  //     if (type === "data" && payload) {
+  //       const updated: BridgeState = {
+  //         startDate: toDateOrNull(payload.startDate),
+  //         endDate: toDateOrNull(payload.endDate),
+  //         sensorId: payload.sensorId || null,
+  //         selectedDays: payload.selectedDays || 1,
+  //       };
+  //       setData(updated);
+  //       console.log("📊 Updated data state:", updated);
+  //     }
+
+  //     if (type === "action" && action) {
+  //       console.log("⚡ Action from React Native:", action);
+  //       const handler = actionHandlers[action];
+
+  //       if (handler) {
+  //         handler(payload);
+  //       } else {
+  //         console.warn(`⚠️ No handler found for action: ${action}`);
+  //       }
+  //     }
+  //   };
+
+  //   return () => {
+  //     delete window.receiveFromReactNative;
+  //   };
+  // }, [actionHandlers]);
+
   useEffect(() => {
-    window.receiveFromReactNative = (incoming: RNMessageData) => {
-      console.log("✅ Received from React Native:", incoming);
+    // 👇 Safe cast to your local RNMessageData type
+    window.receiveFromReactNative = (incoming: any) => {
+      const msg = incoming as RNMessageData;
+      console.log("✅ Received from React Native:", msg);
 
-      const { type, data: payload, action } = incoming;
-
+      const { type, data: payload, action } = msg;
+      // console.log(payload);
       if (type === "data" && payload) {
-        const updated: BridgeState = {
-          startDate: toDateOrNull(payload.startDate),
-          endDate: toDateOrNull(payload.endDate),
-          sensorId: payload.sensorId || null,
-          selectedDays: payload.selectedDays || 1,
-        };
+        const updated: any = { ...payload };
+        updated.startDate = toDateOrNull(payload.startDate);
+        updated.endDate = toDateOrNull(payload.endDate);
+        sendToReactNative("data", updated, "-------updated data");
+        // setData((prev) => ({ ...prev, ...updated }));
         setData(updated);
-        console.log("📊 Updated data state:", updated);
+        sendToReactNative("data", updated, "-------get updated updated data");
       }
 
       if (type === "action" && action) {
         console.log("⚡ Action from React Native:", action);
-        const handler = actionHandlers[action];
 
-        if (handler) {
-          handler(payload);
+        const fn = actionHandlers[action];
+
+        if (fn) {
+          fn(payload); // 👈 pass data coming from RN
         } else {
           console.warn(`⚠️ No handler found for action: ${action}`);
         }
@@ -180,7 +216,7 @@ export function useReactNativeBridge(actionHandlers: ActionHandlers = {}) {
     return () => {
       delete window.receiveFromReactNative;
     };
-  }, [actionHandlers]);
+  }, []);
 
   // Send ready signal when component mounts
   useEffect(() => {
