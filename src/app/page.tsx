@@ -322,7 +322,7 @@ export default function Home() {
     if (token) {
       getTimelineData({
         endDate: nativeData.endDate,
-        sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
+        sensorId: nativeData.sensorId,
         startDate: nativeData.startDate,
       });
     }

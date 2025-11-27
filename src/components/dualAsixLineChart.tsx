@@ -112,6 +112,55 @@ const data = [
 //   );
 // };
 
+// const CustomTick = ({
+//   x,
+//   y,
+//   payload,
+//   visibleLabelTicks,
+// }: {
+//   x: number;
+//   y: number;
+//   payload: { value: number };
+//   visibleLabelTicks?: string[];
+// }) => {
+//   const date = new Date(payload.value);
+//   const timestamp = date.getTime();
+//   // Convert the visible label strings to timestamps once
+//   const visibleTimestamps = visibleLabelTicks?.map((d) =>
+//     new Date(d).getTime()
+//   );
+
+//   // Check if this tick is visible (allow a small tolerance, e.g. ±1 minute)
+//   const isVisible = visibleTimestamps?.some(
+//     (t) => Math.abs(t - timestamp) < 60_000
+//   );
+
+//   if (!isVisible) return null;
+//   const timeLabel = d3.timeFormat("%I:%M %p")(date);
+//   const dateLabel = d3.timeFormat("%m/%d")(date);
+
+//   return (
+//     <g transform={`translate(${x},${y})`}>
+//       {/* <line
+//         x1={0}
+//         y1={0}
+//         x2={0}
+//         y2={8} // increase tick height
+//         stroke={COLORS.black}
+//         strokeWidth={1.5} // tick stroke thickness
+//       /> */}
+//       <text textAnchor="middle" fill={COLORS.black} fontSize={12}>
+//         <tspan x={0} dy="0.2em">
+//           {timeLabel}
+//         </tspan>
+//         <tspan x={0} dy="1.2em">
+//           {dateLabel}
+//         </tspan>
+//       </text>
+//     </g>
+//   );
+// };
+
 const CustomTick = ({
   x,
   y,
@@ -125,30 +174,20 @@ const CustomTick = ({
 }) => {
   const date = new Date(payload.value);
   const timestamp = date.getTime();
-  // Convert the visible label strings to timestamps once
+
   const visibleTimestamps = visibleLabelTicks?.map((d) =>
     new Date(d).getTime()
   );
 
-  // Check if this tick is visible (allow a small tolerance, e.g. ±1 minute)
-  const isVisible = visibleTimestamps?.some(
-    (t) => Math.abs(t - timestamp) < 60_000
-  );
+  const isVisible = visibleTimestamps?.includes(timestamp);
 
   if (!isVisible) return null;
+
   const timeLabel = d3.timeFormat("%I:%M %p")(date);
   const dateLabel = d3.timeFormat("%m/%d")(date);
 
   return (
     <g transform={`translate(${x},${y})`}>
-      {/* <line
-        x1={0}
-        y1={0}
-        x2={0}
-        y2={8} // increase tick height
-        stroke={COLORS.black}
-        strokeWidth={1.5} // tick stroke thickness
-      /> */}
       <text textAnchor="middle" fill={COLORS.black} fontSize={12}>
         <tspan x={0} dy="0.2em">
           {timeLabel}

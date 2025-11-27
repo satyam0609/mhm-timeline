@@ -1,7 +1,16 @@
+// global.d.ts
+
 export type RNMessageData = {
-  type: "action" | "data";
+  type: "action" | "data" | "ready";
   data: any;
   action: string | null;
+};
+
+export type InitialData = {
+  startDate: string;
+  endDate: string;
+  sensorId: string;
+  selectedDays: number;
 };
 
 declare global {
@@ -9,8 +18,8 @@ declare global {
     ReactNativeWebView?: {
       postMessage: (msg: string) => void;
     };
-    receiveFromReactNative?: (data: any) => void;
-    initialDates?: { startDate: string; endDate: string };
+    receiveFromReactNative?: (data: RNMessageData) => void;
+    initialDataFromRN?: InitialData;
   }
 }
 
