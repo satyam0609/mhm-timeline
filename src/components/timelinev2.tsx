@@ -1356,105 +1356,104 @@ const ZoomableTimelineV2 = ({
       }
     };
 
-    // const finalizeInitialZoom = () => {
-    //   const currentScale = d3.zoomTransform(svg.node()!).rescaleX(x);
-    //   xScaleRef.current = currentScale;
-    //   updatePivotDateFromScale(pivotPositionRef.current);
-
-    //   const visibleDomain = currentScale.domain();
-    //   const spanMs = visibleDomain[1].getTime() - visibleDomain[0].getTime();
-    //   const pixelWidth = width - marginLeft - marginRight;
-    //   const pxPerMin = pixelWidth / (spanMs / (1000 * 60));
-    //   const currentInterval = getInterval(pxPerMin, activeConstraint);
-    //   const allowedIntervals = getAllowedIntervals(activeConstraint);
-    //   const isIntervalAllowed = allowedIntervals.some(
-    //     (i) => i.key === currentInterval.key
-    //   );
-    //   if (isIntervalAllowed) {
-    //     setSelectedInterval(currentInterval.key);
-    //   }
-    //   setZoomInfo((prev) => ({ ...prev, current: currentInterval.key }));
-
-    // };
-
     const finalizeInitialZoom = () => {
-      const svgNode = svgSelectionRef.current.node();
-      if (!svgNode) return;
-
-      const transform = d3.zoomTransform(svgNode);
-      const xz = transform.rescaleX(x);
-
-      // Update scale reference
-      xScaleRef.current = xz;
-
-      // Update pivot
+      const currentScale = d3.zoomTransform(svg.node()!).rescaleX(x);
+      xScaleRef.current = currentScale;
       updatePivotDateFromScale(pivotPositionRef.current);
 
-      // --- Compute visible range ---
-      const [visibleStart, visibleEnd] = xz.domain();
-      const range = { start: visibleStart, end: visibleEnd };
-
-      // --- Compute px/min ---
-      const spanMs = visibleEnd.getTime() - visibleStart.getTime();
+      const visibleDomain = currentScale.domain();
+      const spanMs = visibleDomain[1].getTime() - visibleDomain[0].getTime();
       const pixelWidth = width - marginLeft - marginRight;
       const pxPerMin = pixelWidth / (spanMs / (1000 * 60));
-
-      const activeConstraint = getActiveConstraint();
       const currentInterval = getInterval(pxPerMin, activeConstraint);
-
-      // Allowed intervals
       const allowedIntervals = getAllowedIntervals(activeConstraint);
       const isIntervalAllowed = allowedIntervals.some(
         (i) => i.key === currentInterval.key
       );
-
       if (isIntervalAllowed) {
         setSelectedInterval(currentInterval.key);
       }
-
-      // Prepare visible ticks
-      const visibleTicks = xz.ticks(currentInterval.interval);
-      let visibleLabelTicks = [...visibleTicks];
-
-      // Apply same label filter logic used during zoomed()
-      const fullRangeTicks = currentInterval.interval.range(startDate, endDate);
-      switch (timelineConfig.intervalVariant) {
-        case "even":
-          visibleLabelTicks = visibleTicks.filter((t: any) => {
-            const tickDate = new Date(t);
-            const globalIndex = fullRangeTicks.findIndex(
-              (tt) => tt.getTime() === tickDate.getTime()
-            );
-            return globalIndex % 2 === 0;
-          });
-          break;
-
-        case "adjust":
-          visibleLabelTicks = visibleTicks.filter((t: any) => {
-            const tickDate = new Date(t);
-            const globalIndex = fullRangeTicks.findIndex(
-              (tt) => tt.getTime() === tickDate.getTime()
-            );
-            return tickGapRef.current < 80 ? globalIndex % 2 === 0 : true;
-          });
-          break;
-
-        default:
-          break;
-      }
-
-      // --- Update zoom info ---
-      setZoomInfo((prev) => ({
-        ...prev,
-        current: currentInterval.key,
-      }));
-
-      // --- FINAL: Call onScrollorZoomEnd (Your pan/scroll end function) ---
-      onScrollorZoomEnd(range, {
-        currentInterval: currentInterval.key,
-        visibleTicks: visibleLabelTicks,
-      });
+      setZoomInfo((prev) => ({ ...prev, current: currentInterval.key }));
     };
+
+    // const finalizeInitialZoom = () => {
+    //   const svgNode = svgSelectionRef.current.node();
+    //   if (!svgNode) return;
+
+    //   const transform = d3.zoomTransform(svgNode);
+    //   const xz = transform.rescaleX(x);
+
+    //   // Update scale reference
+    //   xScaleRef.current = xz;
+
+    //   // Update pivot
+    //   updatePivotDateFromScale(pivotPositionRef.current);
+
+    //   // --- Compute visible range ---
+    //   const [visibleStart, visibleEnd] = xz.domain();
+    //   const range = { start: visibleStart, end: visibleEnd };
+
+    //   // --- Compute px/min ---
+    //   const spanMs = visibleEnd.getTime() - visibleStart.getTime();
+    //   const pixelWidth = width - marginLeft - marginRight;
+    //   const pxPerMin = pixelWidth / (spanMs / (1000 * 60));
+
+    //   const activeConstraint = getActiveConstraint();
+    //   const currentInterval = getInterval(pxPerMin, activeConstraint);
+
+    //   // Allowed intervals
+    //   const allowedIntervals = getAllowedIntervals(activeConstraint);
+    //   const isIntervalAllowed = allowedIntervals.some(
+    //     (i) => i.key === currentInterval.key
+    //   );
+
+    //   if (isIntervalAllowed) {
+    //     setSelectedInterval(currentInterval.key);
+    //   }
+
+    //   // Prepare visible ticks
+    //   const visibleTicks = xz.ticks(currentInterval.interval);
+    //   let visibleLabelTicks = [...visibleTicks];
+
+    //   // Apply same label filter logic used during zoomed()
+    //   const fullRangeTicks = currentInterval.interval.range(startDate, endDate);
+    //   switch (timelineConfig.intervalVariant) {
+    //     case "even":
+    //       visibleLabelTicks = visibleTicks.filter((t: any) => {
+    //         const tickDate = new Date(t);
+    //         const globalIndex = fullRangeTicks.findIndex(
+    //           (tt) => tt.getTime() === tickDate.getTime()
+    //         );
+    //         return globalIndex % 2 === 0;
+    //       });
+    //       break;
+
+    //     case "adjust":
+    //       visibleLabelTicks = visibleTicks.filter((t: any) => {
+    //         const tickDate = new Date(t);
+    //         const globalIndex = fullRangeTicks.findIndex(
+    //           (tt) => tt.getTime() === tickDate.getTime()
+    //         );
+    //         return tickGapRef.current < 80 ? globalIndex % 2 === 0 : true;
+    //       });
+    //       break;
+
+    //     default:
+    //       break;
+    //   }
+
+    //   // --- Update zoom info ---
+    //   setZoomInfo((prev) => ({
+    //     ...prev,
+    //     current: currentInterval.key,
+    //   }));
+
+    //   // --- FINAL: Call onScrollorZoomEnd (Your pan/scroll end function) ---
+    //   onScrollorZoomEnd(range, {
+    //     currentInterval: currentInterval.key,
+    //     visibleTicks: visibleLabelTicks,
+    //   });
+    // };
 
     // requestAnimationFrame(applyInitialZoom);
     // if (!hasInitialZoomAppliedRef.current) {
