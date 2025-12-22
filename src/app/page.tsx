@@ -78,11 +78,20 @@ export default function Home() {
   const [lineChartData, setLineChartData] = useState<any[]>([]);
   const [showTemperature, setShowTemperature] = useState(true);
   const [showHumidity, setShowHumidity] = useState(true);
+  const [selectedThermo, setSelectedThermo] = useState<Record<string, boolean>>(
+    {}
+  );
+  const thermoColor = {
+    "0x60": COLORS.green,
+    "0x67": COLORS.dodgerBlue,
+    "0x63": COLORS.darkyellow,
+  };
 
   const [visibleTicks, setVisibleTicks] = useState([]);
 
   const [temperatureData, setTemperatureData] = useState([]);
   const [humidityData, setHumidityData] = useState([]);
+  const [thermoTempData, setThermoTempData] = useState<any>([]);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
 
   const parseDate = timeParse("%d/%m/%Y - %I:%M %p");
@@ -177,6 +186,20 @@ export default function Home() {
     }
   }, [visibleRange.start, visibleRange.end, currentInterval]);
 
+  useEffect(() => {
+    if (thermoTempData[0]?.value) {
+      const initialState = Object.keys(thermoTempData[0].value).reduce(
+        (acc, key) => {
+          acc[key] = true; // or false if you want unchecked by default
+          return acc;
+        },
+        {} as Record<string, boolean>
+      );
+
+      setSelectedThermo(initialState);
+    }
+  }, [thermoTempData]);
+
   // useEffect(() => {
   //   if (!loading) {
   //     const blocks = generateColorBlocks(domain.startDate!, domain.endDate!);
@@ -216,16 +239,17 @@ export default function Home() {
       setLineChartData([]);
       try {
         setLoadingAnalysis(true);
-        // sendToReactNative("data", data, "--------machine analysis body");
+        sendToReactNative("data", data, "--------machine analysis body");
 
         const res: any = await getMachineAnalysisData(data.body);
-        // sendToReactNative("data", res, "--------machine analysis data");
+        sendToReactNative("data", res, "--------machine analysis data");
         if (res.success) {
           // setHumidityData(data?.sensorData?.humidity);
           // setTemperatureData(data.sensorData.temperature);
           // sendToReactNative("data", data.sensorData.temperature, null);
           const tempData = res.sensorData.temperature;
           const humidityData = res.sensorData.humidity;
+          const thermoCouple = res.sensorData.thermoCouple;
           const range = data.range;
 
           // sendToReactNative(
@@ -241,6 +265,7 @@ export default function Home() {
 
           setTemperatureData(tempData);
           setHumidityData(humidityData);
+          setThermoTempData(thermoCouple);
 
           const {
             data: tickData,
@@ -252,13 +277,16 @@ export default function Home() {
             data.currentInterval
           );
 
-          const modifiedData = combineTempHumidity(tempData, humidityData).map(
-            (item: any, idx: number) => ({
-              ...item,
-              time: tickData[idx].time,
-              timestamp: tickData[idx].timestamp,
-            })
-          );
+          const modifiedData = combineTempHumidity(
+            tempData,
+            humidityData,
+            thermoCouple
+          ).map((item: any, idx: number) => ({
+            ...item,
+            time: tickData[idx].time,
+            timestamp: tickData[idx].timestamp,
+          }));
+          // sendToReactNative("data", modifiedData, "-------------modified data");
 
           setLineChartData(modifiedData);
         }
@@ -452,7 +480,33 @@ export default function Home() {
 
       <div className="pb-8">
         <div className="bg-lavenderMist_50_opacity mx-11 py-8">
-          <div className=" flex justify-end gap-6.5 mr-4">
+          <div className="flex justify-end gap-6.5 mr-4">
+            {thermoTempData[0]?.value && thermoTempData[0].value !== "0" && (
+              <div className="flex gap-4 items-center">
+                <span className="text-xs text-stratos">Thermocouple: </span>
+                {Object.keys(thermoTempData[0].value).map((item: string) => (
+                  <div key={item} className="flex gap-2 items-center">
+                    <Checkbox
+                      className="h-3 w-3"
+                      id={item}
+                      checked={!!selectedThermo[item]}
+                      onCheckedChange={(val) =>
+                        setSelectedThermo((prev) => ({
+                          ...prev,
+                          [item]: !!val,
+                        }))
+                      }
+                    />
+                    <label htmlFor={item} className="text-xs text-stratos">
+                      {item}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+            {thermoTempData[0] && thermoTempData[0].value !== "0" && (
+              <div className="h-5 w-px bg-stratos"></div>
+            )}
             <div className="flex gap-2 items-center">
               <Checkbox
                 className="h-3 w-3"
@@ -485,8 +539,10 @@ export default function Home() {
             </div>
           ) : (
             <DualAxisChart
+              thermoColor={thermoColor}
               showHumidity={showHumidity}
               showTemperature={showTemperature}
+              selectedThermo={selectedThermo}
               data={lineChartData}
               visibleLabelTicks={visibleTicks as any}
             />

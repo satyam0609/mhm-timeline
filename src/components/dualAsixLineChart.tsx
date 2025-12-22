@@ -201,15 +201,19 @@ const CustomTick = ({
 };
 
 export default function DualAxisChart({
+  thermoColor,
   data,
   showTemperature = true,
   showHumidity = true,
   visibleLabelTicks = [],
+  selectedThermo,
 }: {
+  thermoColor: any;
   data: any[];
   showTemperature?: boolean;
   showHumidity?: boolean;
   visibleLabelTicks?: any;
+  selectedThermo: any;
 }) {
   // console.log(data, "----------chartdata");
   return (
@@ -362,7 +366,61 @@ export default function DualAxisChart({
             connectNulls
             isAnimationActive={false}
             strokeOpacity={showHumidity ? 1 : 0}
-            dot={showHumidity ? { fill: COLORS.lightBlue, r: 4 } : false}
+            dot={showHumidity ? { fill: COLORS.lightGreen, r: 4 } : false}
+          />
+
+          <Line
+            yAxisId="left"
+            type="monotone"
+            dataKey="0x60"
+            stroke={COLORS.green}
+            strokeWidth={2}
+            activeDot={{ r: 5 }}
+            name="0x60"
+            connectNulls
+            isAnimationActive={false}
+            strokeOpacity={selectedThermo["0x60"] ? 1 : 0}
+            dot={
+              selectedThermo["0x60"]
+                ? { fill: thermoColor["0x60"], r: 4 }
+                : false
+            }
+          />
+
+          <Line
+            yAxisId="left"
+            type="monotone"
+            dataKey="0x63"
+            stroke={COLORS.darkyellow}
+            strokeWidth={2}
+            activeDot={{ r: 5 }}
+            name="0x63"
+            connectNulls
+            isAnimationActive={false}
+            strokeOpacity={selectedThermo["0x63"] ? 1 : 0}
+            dot={
+              selectedThermo["0x63"]
+                ? { fill: thermoColor["0x63"], r: 4 }
+                : false
+            }
+          />
+
+          <Line
+            yAxisId="left"
+            type="monotone"
+            dataKey="0x67"
+            stroke={COLORS.dodgerBlue}
+            strokeWidth={2}
+            activeDot={{ r: 5 }}
+            name="0x67"
+            connectNulls
+            isAnimationActive={false}
+            strokeOpacity={selectedThermo["0x67"] ? 1 : 0}
+            dot={
+              selectedThermo["0x67"]
+                ? { fill: thermoColor["0x67"], r: 4 }
+                : false
+            }
           />
         </LineChart>
       </ResponsiveContainer>

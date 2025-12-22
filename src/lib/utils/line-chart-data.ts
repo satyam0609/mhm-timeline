@@ -101,11 +101,62 @@ export function formatToISO(date: Date) {
   return d3.utcFormat("%Y-%m-%dT%H:%M:%S.%LZ")(date);
 }
 
-export function combineTempHumidity(tempArr: any, humArr: any) {
+// export function combineTempHumidity(
+//   tempArr: any,
+//   humArr: any,
+//   thermoCouple: any
+// ) {
+//   const parseTime = d3.timeParse("%I:%M %p");
+
+//   return tempArr.map((tempItem: any, i: number) => {
+//     const humItem = humArr[i];
+//     const thermoIterm = thermoCouple[i];
+
+//     // Parse date "MM/DD/YYYY"
+//     const [month, day, year] = tempItem.date.split("/").map(Number);
+
+//     // Parse time like "11:48 AM"
+//     const t = parseTime(tempItem.time);
+//     if (!t) throw new Error("Invalid time: " + tempItem.time);
+
+//     // Build final JS Date from temp array (same in humidity array)
+//     const dateObj = new Date(
+//       year,
+//       month - 1,
+//       day,
+//       t.getHours(),
+//       t.getMinutes(),
+//       0
+//     );
+
+//     return {
+//       time: formatToISO(dateObj),
+//       temperature: Number(tempItem.value),
+//       humidity: Number(humItem.value),
+//       timestamp: dateObj.getTime(),
+//       file_name: "",
+//       no_data: true,
+//     };
+//   });
+// }
+
+export const flattenThermo = (v: any = {}) =>
+  Object.fromEntries(
+    Object.entries(v).map(([k, val]: any) => [k, val?.thermocouple_temp])
+  );
+
+export function combineTempHumidity(
+  tempArr: any[],
+  humArr: any[],
+  thermoCouple: any[]
+) {
   const parseTime = d3.timeParse("%I:%M %p");
+
+  // helper to flatten thermocouple object
 
   return tempArr.map((tempItem: any, i: number) => {
     const humItem = humArr[i];
+    const thermoItem = thermoCouple[i];
 
     // Parse date "MM/DD/YYYY"
     const [month, day, year] = tempItem.date.split("/").map(Number);
@@ -114,7 +165,7 @@ export function combineTempHumidity(tempArr: any, humArr: any) {
     const t = parseTime(tempItem.time);
     if (!t) throw new Error("Invalid time: " + tempItem.time);
 
-    // Build final JS Date from temp array (same in humidity array)
+    // Build final JS Date
     const dateObj = new Date(
       year,
       month - 1,
@@ -128,6 +179,11 @@ export function combineTempHumidity(tempArr: any, humArr: any) {
       time: formatToISO(dateObj),
       temperature: Number(tempItem.value),
       humidity: Number(humItem.value),
+
+      thermoCouple: thermoItem?.value,
+
+      ...flattenThermo(thermoItem?.value),
+
       timestamp: dateObj.getTime(),
       file_name: "",
       no_data: true,
