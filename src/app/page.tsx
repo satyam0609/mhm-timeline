@@ -216,12 +216,16 @@ export default function Home() {
         // sendToReactNative("data", data, "--------machine analysis body");
 
         const res: any = await getMachineAnalysisData(data.body);
-        // sendToReactNative("data", res, "--------machine analysis data");
         if (res.success) {
           const tempData = res.sensorData.temperature;
           const humidityData = res.sensorData.humidity;
           const thermoCouple = res?.sensorData?.thermoCouple ?? [];
           const range = data.range;
+          sendToReactNative(
+            "data",
+            thermoCouple,
+            "--------machine analysis thermoCouple data"
+          );
 
           setTemperatureData(tempData);
           setHumidityData(humidityData);

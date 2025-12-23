@@ -222,15 +222,36 @@ export function useReactNativeBridge(actionHandlers: ActionHandlers = {}) {
   }, []);
 
   // Send ready signal when component mounts
+  // useEffect(() => {
+  //   if (!isReadySentRef.current) {
+  //     sendToReactNative("ready", { timestamp: new Date().toISOString() });
+  //     setIsReady(true);
+  //     dispatch(setReady(true));
+  //     isReadySentRef.current = true;
+  //     console.log("🟢 WebView ready signal sent");
+  //   }
+  // }, [sendToReactNative]);
   useEffect(() => {
-    if (!isReadySentRef.current) {
-      sendToReactNative("ready", { timestamp: new Date().toISOString() });
-      setIsReady(true);
-      dispatch(setReady(true));
-      isReadySentRef.current = true;
-      console.log("🟢 WebView ready signal sent");
-    }
-  }, [sendToReactNative]);
+    if ((window as any).__RN_BRIDGE_READY_SENT__) return;
+
+    sendToReactNative(
+      "ready",
+      {
+        timestamp: new Date().toISOString(),
+      },
+      "---this one"
+    );
+
+    (window as any).__RN_BRIDGE_READY_SENT__ = true;
+
+    setIsReady(true);
+    dispatch(setReady(true));
+
+    console.log("🟢 WebView ready signal sent (once)");
+    return () => {
+      delete (window as any).__RN_BRIDGE_READY_SENT__;
+    };
+  }, [sendToReactNative, dispatch]);
 
   return {
     data,
