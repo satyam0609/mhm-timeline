@@ -148,7 +148,10 @@ export default function Home() {
       // setLineChartData(generateData);
       const chartLabels = generateData.map((item) => item.time);
       debouncedMachineAnalysis({
-        body: { sensorId: nativeData.sensorId, timeSlots: chartLabels },
+        body: {
+          sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
+          timeSlots: chartLabels,
+        },
         range: visibleRange,
         currentInterval,
       });
@@ -298,19 +301,15 @@ export default function Home() {
     [data] // Depend only on 'data' for the recalculation
   );
 
-  // useEffect(() => {
-  //   checkToken();
-  // }, [webToken]);
-
   useEffect(() => {
-    if (token) {
-      getTimelineData({
-        endDate: nativeData.endDate,
-        sensorId: nativeData.sensorId,
-        startDate: nativeData.startDate,
-      });
-    }
-  }, [token, nativeData.startDate, nativeData.endDate, nativeData.sensorId]);
+    // if (nativeData.sensorId) {
+    getTimelineData({
+      endDate: nativeData.endDate,
+      sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
+      startDate: nativeData.startDate,
+    });
+    // }
+  }, [nativeData.startDate, nativeData.endDate, nativeData.sensorId]);
 
   return (
     <div className="px-0">
