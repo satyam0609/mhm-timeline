@@ -1,10 +1,10 @@
 "use client";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
+import { useRNBridge } from "@/lib/context/bridgeContext";
 
 export default function NotFound() {
-  const { sendToReactNative } = useReactNativeBridge();
+  const { sendToReactNative } = useRNBridge();
   const handleRefresh = () => {
     sendToReactNative("action", null, "refresh");
   };

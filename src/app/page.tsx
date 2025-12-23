@@ -12,13 +12,13 @@ import {
   combineTempHumidity,
   generateTimeSeriesData,
 } from "@/lib/utils/line-chart-data";
-import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
 import { timeParse } from "d3";
 import { useCallback, useEffect, useState } from "react";
 
 import ZoomableTimelineV2 from "@/components/timelinev2";
 import throttle from "lodash.throttle";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRNBridge } from "@/lib/context/bridgeContext";
 
 const blockColors: Record<number, string> = {
   1: "#9999d6",
@@ -33,9 +33,25 @@ const blockColors: Record<number, string> = {
 
 export default function Home() {
   const { token } = useAppSelector((state) => state.auth);
-  const { data: nativeData, sendToReactNative } = useReactNativeBridge({
-    callGetSpectrogram: (data: any) => debouncedSpectrogram(data),
-  });
+  // const { data: nativeData, sendToReactNative } = useReactNativeBridge({
+  //   callGetSpectrogram: (data: any) => debouncedSpectrogram(data),
+  // });
+
+  const {
+    registerHandler,
+    unregisterHandler,
+    sendToReactNative,
+    data: nativeData,
+  } = useRNBridge();
+
+  useEffect(() => {
+    registerHandler("callGetSpectrogram", (data: any) => {
+      debouncedSpectrogram(data);
+    });
+    return () => {
+      unregisterHandler("callGetSpectrogram");
+    };
+  }, []);
 
   const [loading, setLoading] = useState(true);
 
@@ -91,7 +107,7 @@ export default function Home() {
     try {
       setLoading(true);
 
-      sendToReactNative("data", body, "-----------from web body");
+      // sendToReactNative("data", body, "-----------from web body");
       const data = await getZoomableData(body);
 
       console.log(data);
@@ -133,23 +149,23 @@ export default function Home() {
         visibleRange.end,
         currentInterval
       );
-      sendToReactNative(
-        "data",
-        {
-          visibleRange,
-          id: nativeData.sensorId,
-          days: nativeData.selectedDays,
-          startDate: visibleRange.start,
-          endDate: visibleRange.end,
-          startTimeLine: visibleRange.start,
-        },
-        "------------range"
-      );
+      // sendToReactNative(
+      //   "data",
+      //   {
+      //     visibleRange,
+      //     id: nativeData.sensorId,
+      //     days: nativeData.selectedDays,
+      //     startDate: visibleRange.start,
+      //     endDate: visibleRange.end,
+      //     startTimeLine: visibleRange.start,
+      //   },
+      //   "------------range"
+      // );
       // setLineChartData(generateData);
       const chartLabels = generateData.map((item) => item.time);
       debouncedMachineAnalysis({
         body: {
-          sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
+          sensorId: nativeData.sensorId,
           timeSlots: chartLabels,
         },
         range: visibleRange,
@@ -221,11 +237,11 @@ export default function Home() {
           const humidityData = res.sensorData.humidity;
           const thermoCouple = res?.sensorData?.thermoCouple ?? [];
           const range = data.range;
-          sendToReactNative(
-            "data",
-            thermoCouple,
-            "--------machine analysis thermoCouple data"
-          );
+          // sendToReactNative(
+          //   "data",
+          //   thermoCouple,
+          //   "--------machine analysis thermoCouple data"
+          // );
 
           setTemperatureData(tempData);
           setHumidityData(humidityData);

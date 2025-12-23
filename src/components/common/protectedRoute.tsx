@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { logout, setToken } from "@/lib/store/slices/auth-slice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks/useRedux";
 import { verifyWebToken } from "@/lib/apis/machine";
-import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
+import { useRNBridge } from "@/lib/context/bridgeContext";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -13,11 +13,12 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const webToken = searchParams.get("token");
   // const webToken =
-  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzJiYjFlMzgzYTNhMjA0OGFhMWFhZTYiLCJpYXQiOjE3NjY0ODQ2NzksImV4cCI6MTc2NjQ5MTg3OX0.eyslPHocf8SyNYt-A99-VX_5e-nRrnbNoWbzzvWnJng";
+  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzJiYjFlMzgzYTNhMjA0OGFhMWFhZTYiLCJpYXQiOjE3NjY0OTIyMDgsImV4cCI6MTc2NjQ5OTQwOH0.SM28D_nyZvam09-RmvvXd36bYGwQyZtnTPLPET1MCOk";
 
   const { token, isVerified } = useAppSelector((state) => state.auth);
   const [isChecking, setIsChecking] = useState(false);
-  const { isReady } = useReactNativeBridge();
+  // const { isReady } = useRNBridge();
+
   const IGNORED_ROUTES = ["/not-found", "/something-else"];
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     verifyToken();
   }, [webToken, router, dispatch]);
 
-  if (isChecking || !isReady)
+  if (isChecking)
     return (
       <div className="flex h-screen items-center justify-center">
         <p>Loading...</p>
