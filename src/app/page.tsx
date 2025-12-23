@@ -252,17 +252,6 @@ export default function Home() {
           const thermoCouple = res.sensorData.thermoCouple;
           const range = data.range;
 
-          // sendToReactNative(
-          //   "data",
-          //   res.sensorData.temperature,
-          //   "--------humdata"
-          // );
-          // sendToReactNative(
-          //   "data",
-          //   res.sensorData.humidity,
-          //   `---------tempdata ${(range.start, range.end, currentInterval)}`
-          // );
-
           setTemperatureData(tempData);
           setHumidityData(humidityData);
           setThermoTempData(thermoCouple);
@@ -286,7 +275,6 @@ export default function Home() {
             time: tickData[idx].time,
             timestamp: tickData[idx].timestamp,
           }));
-          // sendToReactNative("data", modifiedData, "-------------modified data");
 
           setLineChartData(modifiedData);
         }
@@ -552,3 +540,11 @@ export default function Home() {
     </div>
   );
 }
+
+// import React from "react";
+
+// function page() {
+//   return <div>page</div>;
+// }
+
+// export default page;

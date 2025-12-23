@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import StoreProvider from "@/lib/store/store-provider";
 import ProtectedRoute from "@/components/common/protectedRoute";
+import NotFound from "./not-found/page";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} antialiased h-full w-full`}
       >
+        {/* {children} */}
         <StoreProvider>
           <ProtectedRoute>{children}</ProtectedRoute>
         </StoreProvider>

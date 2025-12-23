@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { logout, setToken } from "@/lib/store/slices/auth-slice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks/useRedux";
 import { verifyWebToken } from "@/lib/apis/machine";
+import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -11,12 +12,10 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const webToken = searchParams.get("token");
-  // const webToken = null;
-  // const webToken =
-  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzJiYjFlMzgzYTNhMjA0OGFhMWFhZTYiLCJpYXQiOjE3NjM2MjYxMDUsImV4cCI6MTc2MzYzMzMwNX0.lvhQr6jJ0SnvK33UC3TUwh6cKhwNWRTDUOQjSgenBQg";
+
   const { token, isVerified } = useAppSelector((state) => state.auth);
   const [isChecking, setIsChecking] = useState(false);
-
+  const { isReady } = useReactNativeBridge();
   const IGNORED_ROUTES = ["/not-found", "/something-else"];
 
   useEffect(() => {
@@ -49,9 +48,9 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     };
 
     verifyToken();
-  }, [webToken, isVerified, token, router, dispatch]);
+  }, [webToken, router, dispatch]);
 
-  if (isChecking)
+  if (isChecking || !isReady)
     return (
       <div className="flex h-screen items-center justify-center">
         <p>Loading...</p>
@@ -59,7 +58,12 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     );
 
   // If after checking, still no token → do not render
-  if (!token) return null;
+  if (!token)
+    return (
+      <div className="flex h-screen items-center justify-center">
+        Unauthorized
+      </div>
+    );
 
   return <>{children}</>;
 }

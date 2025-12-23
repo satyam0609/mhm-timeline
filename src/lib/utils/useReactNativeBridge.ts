@@ -87,6 +87,8 @@
 // ============================================
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { RNMessageData } from "@/types/global";
+import { useAppDispatch } from "../hooks/useRedux";
+import { setReady } from "../store/slices/auth-slice";
 
 type BridgeState = {
   startDate: Date | null;
@@ -113,6 +115,7 @@ export function useReactNativeBridge(actionHandlers: ActionHandlers = {}) {
   });
 
   const isReadySentRef = useRef(false);
+  const dispatch = useAppDispatch();
 
   // Send message to React Native
   const sendToReactNative = useCallback(
@@ -223,6 +226,7 @@ export function useReactNativeBridge(actionHandlers: ActionHandlers = {}) {
     if (!isReadySentRef.current) {
       sendToReactNative("ready", { timestamp: new Date().toISOString() });
       setIsReady(true);
+      dispatch(setReady(true));
       isReadySentRef.current = true;
       console.log("🟢 WebView ready signal sent");
     }
