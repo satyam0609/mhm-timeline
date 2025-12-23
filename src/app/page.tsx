@@ -360,30 +360,32 @@ export default function Home() {
       <div className="pb-8">
         <div className="bg-lavenderMist_50_opacity mx-11 py-8">
           <div className="flex justify-end gap-6.5 mr-4">
-            {thermoTempData[0]?.value && thermoTempData[0].value !== "0" && (
-              <div className="flex gap-4 items-center">
-                <span className="text-xs text-stratos">Thermocouple: </span>
-                {Object.keys(thermoTempData[0].value).map((item: string) => (
-                  <div key={item} className="flex gap-2 items-center">
-                    <Checkbox
-                      className="h-3 w-3"
-                      id={item}
-                      checked={!!selectedThermo[item]}
-                      onCheckedChange={(val) =>
-                        setSelectedThermo((prev) => ({
-                          ...prev,
-                          [item]: !!val,
-                        }))
-                      }
-                    />
-                    <label htmlFor={item} className="text-xs text-stratos">
-                      {item}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            )}
-            {thermoTempData[0] && thermoTempData[0].value !== "0" && (
+            {thermoTempData.length > 0 &&
+              thermoTempData[0]?.value &&
+              thermoTempData[0].value !== "0" && (
+                <div className="flex gap-4 items-center">
+                  <span className="text-xs text-stratos">Thermocouple: </span>
+                  {Object.keys(thermoTempData[0].value).map((item) => (
+                    <div key={item} className="flex gap-2 items-center">
+                      <Checkbox
+                        className="h-3 w-3"
+                        id={item}
+                        checked={!!selectedThermo[item]}
+                        onCheckedChange={(val) =>
+                          setSelectedThermo((prev) => ({
+                            ...prev,
+                            [item]: !!val,
+                          }))
+                        }
+                      />
+                      <label htmlFor={item} className="text-xs text-stratos">
+                        {item}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            {thermoTempData[0] && thermoTempData[0]?.value !== "0" && (
               <div className="h-5 w-px bg-stratos"></div>
             )}
             <div className="flex gap-2 items-center">
