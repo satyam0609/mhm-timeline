@@ -167,8 +167,8 @@ export default function Home() {
   }, [visibleRange.start, visibleRange.end, currentInterval]);
 
   useEffect(() => {
-    if (thermoTempData) {
-      const initialState = Object.keys(thermoTempData[0].value).reduce(
+    if (thermoTempData.lenngth > 0) {
+      const initialState = Object.keys(thermoTempData[0]?.value).reduce(
         (acc, key) => {
           acc[key] = true; // or false if you want unchecked by default
           return acc;
@@ -361,8 +361,9 @@ export default function Home() {
         <div className="bg-lavenderMist_50_opacity mx-11 py-8">
           <div className="flex justify-end gap-6.5 mr-4">
             {thermoTempData.length > 0 &&
+              thermoTempData[0] &&
               thermoTempData[0]?.value &&
-              thermoTempData[0].value !== "0" && (
+              thermoTempData[0]?.value !== "0" && (
                 <div className="flex gap-4 items-center">
                   <span className="text-xs text-stratos">Thermocouple: </span>
                   {Object.keys(thermoTempData[0].value).map((item) => (
@@ -385,9 +386,11 @@ export default function Home() {
                   ))}
                 </div>
               )}
-            {thermoTempData[0] && thermoTempData[0]?.value !== "0" && (
-              <div className="h-5 w-px bg-stratos"></div>
-            )}
+            {thermoTempData.length > 0 &&
+              thermoTempData[0] &&
+              thermoTempData[0]?.value !== "0" && (
+                <div className="h-5 w-px bg-stratos"></div>
+              )}
             <div className="flex gap-2 items-center">
               <Checkbox
                 className="h-3 w-3"
