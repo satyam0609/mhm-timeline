@@ -117,7 +117,11 @@ export function ReactNativeBridgeProvider({
 
   useEffect(() => {
     window.receiveFromReactNative = (msg: RNMessageData) => {
-      //   sendToReactNative("data", msg, "---new msg received");
+      sendToReactNative(
+        "data",
+        msg,
+        "=================new msg received=========================="
+      );
       const { type, data: payload, action } = msg;
 
       if (type === "data" && payload) {
