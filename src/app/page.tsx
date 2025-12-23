@@ -239,10 +239,10 @@ export default function Home() {
       setLineChartData([]);
       try {
         setLoadingAnalysis(true);
-        sendToReactNative("data", data, "--------machine analysis body");
+        // sendToReactNative("data", data, "--------machine analysis body");
 
         const res: any = await getMachineAnalysisData(data.body);
-        sendToReactNative("data", res, "--------machine analysis data");
+        // sendToReactNative("data", res, "--------machine analysis data");
         if (res.success) {
           // setHumidityData(data?.sensorData?.humidity);
           // setTemperatureData(data.sensorData.temperature);

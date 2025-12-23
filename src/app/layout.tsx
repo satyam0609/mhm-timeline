@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
-import StoreProvider from "@/lib/store/store-provider";
-import ProtectedRoute from "@/components/common/protectedRoute";
-import NotFound from "./not-found/page";
+
+import Providers from "@/components/common/provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,9 +34,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} antialiased h-full w-full`}
       >
         {/* {children} */}
-        <StoreProvider>
-          <ProtectedRoute>{children}</ProtectedRoute>
-        </StoreProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
