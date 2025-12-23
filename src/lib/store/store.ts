@@ -1,16 +1,21 @@
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import { persistReducer } from "redux-persist";
-import storage from "redux-persist/lib/storage";
+// import storage from "redux-persist/lib/storage";
 import authSlice from "./slices/auth-slice";
+import bridgeSlice from "./slices/bridge-slice";
+import storage from "./custom-storage";
 
 const combineReducer = combineReducers({
   auth: authSlice,
+  bridge: bridgeSlice,
 });
+
+const isClient = typeof window !== "undefined";
 
 const persistConfig = {
   key: "noop-storage",
   storage: storage,
-  whiteList: ["counter"],
+  whiteList: ["bridge"],
 };
 
 const persistedReducer = persistReducer(persistConfig, combineReducer);

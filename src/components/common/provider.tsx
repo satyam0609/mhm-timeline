@@ -2,11 +2,14 @@
 import StoreProvider from "@/lib/store/store-provider";
 import React from "react";
 import ProtectedRoute from "./protectedRoute";
+import { ReactNativeBridgeProvider } from "@/lib/context/bridgeContext";
 
 function Providers({ children }: any) {
   return (
     <StoreProvider>
-      <ProtectedRoute>{children}</ProtectedRoute>
+      <ReactNativeBridgeProvider>
+        <ProtectedRoute>{children}</ProtectedRoute>
+      </ReactNativeBridgeProvider>
     </StoreProvider>
   );
 }

@@ -25,7 +25,7 @@ import {
 import { Checkbox } from "./ui/checkbox";
 import { Skeleton } from "./ui/skeleton";
 import Image from "next/image";
-import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
+import { useRNBridge } from "@/lib/context/bridgeContext";
 
 type IntervalConfig = {
   key: string;
@@ -541,7 +541,7 @@ const ZoomableTimelineV2 = ({
   //     });
   // };
 
-  const { sendToReactNative } = useReactNativeBridge();
+  const { sendToReactNative } = useRNBridge();
 
   // const handleIntervalChange = (intervalKey: string) => {
   //   if (
