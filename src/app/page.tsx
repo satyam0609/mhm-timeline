@@ -167,7 +167,7 @@ export default function Home() {
   }, [visibleRange.start, visibleRange.end, currentInterval]);
 
   useEffect(() => {
-    if (thermoTempData[0]?.value) {
+    if (thermoTempData) {
       const initialState = Object.keys(thermoTempData[0].value).reduce(
         (acc, key) => {
           acc[key] = true; // or false if you want unchecked by default
@@ -220,7 +220,7 @@ export default function Home() {
         if (res.success) {
           const tempData = res.sensorData.temperature;
           const humidityData = res.sensorData.humidity;
-          const thermoCouple = res.sensorData.thermoCouple;
+          const thermoCouple = res?.sensorData?.thermoCouple ?? [];
           const range = data.range;
 
           setTemperatureData(tempData);
