@@ -170,7 +170,7 @@ export default function Home() {
     if (thermoTempData.lenngth > 0) {
       const initialState = Object.keys(thermoTempData[0]?.value).reduce(
         (acc, key) => {
-          acc[key] = true; // or false if you want unchecked by default
+          acc[key] = true;
           return acc;
         },
         {} as Record<string, boolean>
@@ -302,13 +302,13 @@ export default function Home() {
   );
 
   useEffect(() => {
-    // if (nativeData.sensorId) {
-    getTimelineData({
-      endDate: nativeData.endDate,
-      sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
-      startDate: nativeData.startDate,
-    });
-    // }
+    if (nativeData.sensorId) {
+      getTimelineData({
+        endDate: nativeData.endDate,
+        sensorId: nativeData.sensorId,
+        startDate: nativeData.startDate,
+      });
+    }
   }, [nativeData.startDate, nativeData.endDate, nativeData.sensorId]);
 
   return (
