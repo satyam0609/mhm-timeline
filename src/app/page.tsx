@@ -6,24 +6,15 @@ import {
   getMachineAnalysisData,
   getSpectrogram,
   getZoomableData,
-  verifyWebToken,
 } from "@/lib/apis/machine";
-import { useAppDispatch, useAppSelector } from "@/lib/hooks/useRedux";
+import { useAppSelector } from "@/lib/hooks/useRedux";
 import {
   combineTempHumidity,
   generateTimeSeriesData,
 } from "@/lib/utils/line-chart-data";
 import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
-import { timeFormat, timeParse } from "d3";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { timeParse } from "d3";
+import { useCallback, useEffect, useState } from "react";
 
 import ZoomableTimelineV2 from "@/components/timelinev2";
 import throttle from "lodash.throttle";
@@ -107,16 +98,6 @@ export default function Home() {
       if (data.success) {
         const timelineData = data.data;
 
-        // console.log(modifiedTimelineData, "--------------modified");
-        // sendToReactNative(
-        //   "data",
-        //   {
-        //     startDate: parseDate(timelineData[0]?.from)!,
-        //     endDate: parseDate(timelineData[timelineData.length - 1]?.to)!,
-        //     timelineData,
-        //   },
-        //   "---------timeline data from web-----------"
-        // );
         setDomain({
           startDate: parseDate(timelineData[0]?.from)!,
           endDate: parseDate(timelineData[timelineData.length - 1]?.to)!,
@@ -147,11 +128,7 @@ export default function Home() {
       setLoadingAnalysis(true);
       setIsLoadingSpectrogram(true);
 
-      const {
-        data: generateData,
-        startInserted,
-        endInserted,
-      } = generateTimeSeriesData(
+      const { data: generateData } = generateTimeSeriesData(
         visibleRange.start,
         visibleRange.end,
         currentInterval
@@ -200,12 +177,6 @@ export default function Home() {
     }
   }, [thermoTempData]);
 
-  // useEffect(() => {
-  //   if (!loading) {
-  //     const blocks = generateColorBlocks(domain.startDate!, domain.endDate!);
-  //     setData(blocks);
-  //   }
-  // }, [domain.startDate, domain.endDate, loading]);
   const callGetSpectrogramApi = useCallback(
     async (body: any) => {
       setIsLoadingSpectrogram(true);
@@ -244,9 +215,6 @@ export default function Home() {
         const res: any = await getMachineAnalysisData(data.body);
         // sendToReactNative("data", res, "--------machine analysis data");
         if (res.success) {
-          // setHumidityData(data?.sensorData?.humidity);
-          // setTemperatureData(data.sensorData.temperature);
-          // sendToReactNative("data", data.sensorData.temperature, null);
           const tempData = res.sensorData.temperature;
           const humidityData = res.sensorData.humidity;
           const thermoCouple = res.sensorData.thermoCouple;
@@ -346,59 +314,6 @@ export default function Home() {
 
   return (
     <div className="px-0">
-      <div>
-        {/* {currentInterval} */}
-        {/* <h1 className="text-2xl">Data Coming from webview</h1> */}
-        {/* {JSON.stringify(nativeData)} */}
-        {/* {spectrogram}
-        {JSON.stringify(isNormalSubMode)} */}
-      </div>
-
-      {/* <div className="">
-        <ZoomableTimelineDebug
-          loading={loading && data.length > 0}
-          startDate={domain.startDate}
-          endDate={domain.endDate}
-          data={data}
-          onZoom={(data) => {
-            setCurrentInterval(data.currentInterval);
-            setVisibleTicks(data.visibleTicks);
-          }}
-          onVisibleRangeChange={(data) => setVisibleRange(data)}
-          timelineConfig={{
-            initialInterval: 7,
-            scrollTo: "end",
-            needTwoLineLabel: true,
-            intervalVariant: "even",
-            animateInitialRender: true,
-          }}
-          onCalendarClick={() =>
-            sendToReactNative("action", null, "openCalendar")
-          }
-        />
-      </div> */}
-      {/* <ZoomableTimelineV1
-        loading={loading}
-        startDate={domain.startDate!}
-        endDate={domain.endDate!}
-        data={data}
-        onZoom={(data) => {
-          setCurrentInterval(data.currentInterval);
-          setVisibleTicks(data.visibleTicks);
-        }}
-        onVisibleRangeChange={(data) => setVisibleRange(data)}
-        timelineConfig={{
-          initialInterval: 7,
-          scrollTo: "end",
-          needTwoLineLabel: true,
-          intervalVariant: "even",
-          animateInitialRender: true,
-        }}
-        onCalendarClick={() =>
-          sendToReactNative("action", null, "openCalendar")
-        }
-      /> */}
-
       <ZoomableTimelineV2
         loading={loading}
         loadingSpectrogram={isLoadingSpectrogram || loading}
@@ -442,29 +357,6 @@ export default function Home() {
         onModeChange={handleModeChange}
         isNormalSubMode={isNormalSubMode}
       />
-
-      {/* <div>
-        <NewZoomableTimeline
-          startDate={domain.startDate}
-          endDate={domain.endDate}
-          data={data}
-          onZoom={(data) => {
-            setCurrentInterval(data.currentInterval);
-            setVisibleTicks(data.visibleTicks);
-          }}
-          onVisibleRangeChange={(data) => setVisibleRange(data)}
-          timelineConfig={{
-            initialInterval: 4,
-            scrollTo: "end",
-            needTwoLineLabel: true,
-            intervalVariant: "even",
-            animateInitialRender: true,
-          }}
-          onCalendarClick={() =>
-            sendToReactNative("action", null, "openCalendar")
-          }
-        />
-      </div> */}
 
       <div className="pb-8">
         <div className="bg-lavenderMist_50_opacity mx-11 py-8">
@@ -523,7 +415,7 @@ export default function Home() {
         <div>
           {loadingAnalysis || loading ? (
             <div className="px-11 relative">
-              <Skeleton className="h-[260px] w-full rounded-none" />
+              <Skeleton className="h-65 w-full rounded-none" />
             </div>
           ) : (
             <DualAxisChart
