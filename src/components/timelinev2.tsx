@@ -25,7 +25,6 @@ import {
 import { Checkbox } from "./ui/checkbox";
 import { Skeleton } from "./ui/skeleton";
 import Image from "next/image";
-import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
 
 type IntervalConfig = {
   key: string;
@@ -315,8 +314,6 @@ const ZoomableTimelineV2 = ({
 
     // Store in ref so 'zoomed' can access the latest value anytime
     basePxPerMinRef.current = basePxPerMs * 60 * 1000;
-
-    sendToReactNative("data", basePxPerMinRef.current, "------base px per min");
   }, [width, startDate, endDate]);
 
   const getHeaderDate = useCallback(() => {
@@ -541,8 +538,6 @@ const ZoomableTimelineV2 = ({
   //     });
   // };
 
-  const { sendToReactNative } = useReactNativeBridge();
-
   // const handleIntervalChange = (intervalKey: string) => {
   //   if (
   //     !zoomBehaviorRef.current ||
@@ -739,17 +734,17 @@ const ZoomableTimelineV2 = ({
         const finalInterval = getInterval(finalPxPerMin, activeConstraint);
 
         if (finalInterval.key !== intervalKey) {
-          sendToReactNative(
-            "data",
-            `Target interval ${intervalKey} not reached. Got ${
-              finalInterval.key
-            }
-            Target px/min: ${targetPxPerMin.toFixed(
-              2
-            )}, Final px/min: ${finalPxPerMin.toFixed(2)},,
-            Width: ${width}, Buffer used: ${dynamicBuffer.toFixed(3)}`,
-            null
-          );
+          // sendToReactNative(
+          //   "data",
+          //   `Target interval ${intervalKey} not reached. Got ${
+          //     finalInterval.key
+          //   }
+          //   Target px/min: ${targetPxPerMin.toFixed(
+          //     2
+          //   )}, Final px/min: ${finalPxPerMin.toFixed(2)},,
+          //   Width: ${width}, Buffer used: ${dynamicBuffer.toFixed(3)}`,
+          //   null
+          // );
         }
 
         // If we didn't reach target, try again with a larger buffer
@@ -1500,11 +1495,11 @@ const ZoomableTimelineV2 = ({
   }
 
   useEffect(() => {
-    sendToReactNative(
-      "data",
-      { data: "Updating the timeline mode", mode: isNormalSubMode },
-      null
-    );
+    // sendToReactNative(
+    //   "data",
+    //   { data: "Updating the timeline mode", mode: isNormalSubMode },
+    //   null
+    // );
     updateTimeline(xScaleRef.current);
   }, [isNormalSubMode, data]);
 

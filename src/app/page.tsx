@@ -12,7 +12,7 @@ import {
   combineTempHumidity,
   generateTimeSeriesData,
 } from "@/lib/utils/line-chart-data";
-import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
+import { useReactNativeBridge } from "@/components/common/reactNativeBridgeProvider";
 import { timeParse } from "d3";
 import { useCallback, useEffect, useState } from "react";
 
@@ -32,10 +32,17 @@ const blockColors: Record<number, string> = {
 };
 
 export default function Home() {
-  const { token } = useAppSelector((state) => state.auth);
-  const { data: nativeData, sendToReactNative } = useReactNativeBridge({
-    callGetSpectrogram: (data: any) => debouncedSpectrogram(data),
-  });
+  const {
+    isReady,
+    data: nativeData,
+    sendToReactNative,
+    registerActions,
+  } = useReactNativeBridge();
+  useEffect(() => {
+    registerActions({
+      callGetSpectrogram: (data: any) => debouncedSpectrogram(data),
+    });
+  }, [isReady]);
 
   const [loading, setLoading] = useState(true);
 
@@ -91,7 +98,6 @@ export default function Home() {
     try {
       setLoading(true);
 
-      sendToReactNative("data", body, "-----------from web body");
       const data = await getZoomableData(body);
 
       console.log(data);
@@ -133,18 +139,14 @@ export default function Home() {
         visibleRange.end,
         currentInterval
       );
-      sendToReactNative(
-        "data",
-        {
-          visibleRange,
-          id: nativeData.sensorId,
-          days: nativeData.selectedDays,
-          startDate: visibleRange.start,
-          endDate: visibleRange.end,
-          startTimeLine: visibleRange.start,
-        },
-        "------------range"
-      );
+      sendToReactNative("data", {
+        visibleRange,
+        id: nativeData.sensorId,
+        days: nativeData.selectedDays,
+        startDate: visibleRange.start,
+        endDate: visibleRange.end,
+        startTimeLine: visibleRange.start,
+      });
       // setLineChartData(generateData);
       const chartLabels = generateData.map((item) => item.time);
       debouncedMachineAnalysis({

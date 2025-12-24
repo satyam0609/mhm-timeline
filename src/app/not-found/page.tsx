@@ -1,7 +1,7 @@
 "use client";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useReactNativeBridge } from "@/lib/utils/useReactNativeBridge";
+import { useReactNativeBridge } from "@/components/common/reactNativeBridgeProvider";
 
 export default function NotFound() {
   const { sendToReactNative } = useReactNativeBridge();
