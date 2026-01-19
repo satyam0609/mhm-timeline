@@ -14,9 +14,9 @@ export type ReactNativeBridgeContextType = {
   data: BridgeState;
   isReady: boolean;
   sendToReactNative: (
-    type: "action" | "data" | "ready",
+    type: "action" | "data" | "ready" | "ack",
     payloadData?: any,
-    action?: string | null
+    action?: string | null,
   ) => void;
   registerActions: (handlers: ActionHandlers) => void;
 };
