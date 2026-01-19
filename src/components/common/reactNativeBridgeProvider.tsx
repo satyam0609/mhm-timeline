@@ -42,7 +42,7 @@ export function ReactNativeBridgeProvider({
     (
       type: "action" | "data" | "ready" | "ack",
       payloadData: any = null,
-      action: string | null = null
+      action: string | null = null,
     ) => {
       if (window.ReactNativeWebView?.postMessage) {
         const payload: RNMessageData = { type, data: payloadData, action };
@@ -52,7 +52,7 @@ export function ReactNativeBridgeProvider({
         console.warn("⚠️ ReactNativeWebView not available");
       }
     },
-    []
+    [],
   );
 
   // ✅ Register actions dynamically
@@ -164,7 +164,7 @@ export function ReactNativeBridgeProvider({
       }
     };
 
-    document.addEventListener("message", messageHandler);
+    // document.addEventListener("message", messageHandler);
     window.addEventListener("message", messageHandler);
 
     // Send initial ready signal
@@ -180,7 +180,7 @@ export function ReactNativeBridgeProvider({
       // Cleanup
       clearTimeout(readyTimer);
       delete window.receiveFromReactNative;
-      document.removeEventListener("message", messageHandler);
+      // document.removeEventListener("message", messageHandler);
       window.removeEventListener("message", messageHandler);
     };
   }, [sendToReactNative]); // Only sendToReactNative - stable
@@ -204,7 +204,7 @@ export function useReactNativeBridge() {
 
   if (!ctx) {
     throw new Error(
-      "useReactNativeBridge must be used inside ReactNativeBridgeProvider"
+      "useReactNativeBridge must be used inside ReactNativeBridgeProvider",
     );
   }
 
