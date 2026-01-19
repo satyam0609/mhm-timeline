@@ -63,12 +63,12 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     );
 
   // If after checking, still no token → do not render
-  if (!token)
-    return (
-      <div className="flex h-screen items-center justify-center">
-        Unauthorized
-      </div>
-    );
+  // if (!token)
+  //   return (
+  //     <div className="flex h-screen items-center justify-center">
+  //       Unauthorized
+  //     </div>
+  //   );
 
   return <>{children}</>;
 }
