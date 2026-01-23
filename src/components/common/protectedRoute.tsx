@@ -58,17 +58,17 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   if (isChecking || !isReady)
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>{webToken}...</p>
+        <p className="text-blue-950 font-semibold">Loading...</p>
       </div>
     );
 
   // If after checking, still no token → do not render
-  // if (!token)
-  //   return (
-  //     <div className="flex h-screen items-center justify-center">
-  //       Unauthorized
-  //     </div>
-  //   );
+  if (!webToken)
+    return (
+      <div className="flex h-screen items-center justify-center">
+        Unauthorized
+      </div>
+    );
 
   return <>{children}</>;
 }
