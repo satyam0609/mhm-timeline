@@ -391,21 +391,23 @@ export default function Home() {
             <div className="h-5 w-px bg-stratos"></div>
             <div className="flex gap-2 items-center">
               <span className="text-xs text-stratos">Temperature (°C)</span>
+
+              <label htmlFor="temp" className="text-xs text-stratos">
+                Ambient
+              </label>
               <Checkbox
                 className="h-3 w-3"
                 id={"temp"}
                 checked={showTemperature}
                 onCheckedChange={(val) => setShowTemperature(!!val)}
               />
-              <label htmlFor="temp" className="text-xs text-stratos">
-                Ambient
-              </label>
 
               <div className="flex gap-2 items-center">
-                <label htmlFor="temp" className="text-xs text-stratos">
+                <label htmlFor="temp1" className="text-xs text-stratos">
                   T1
                 </label>
                 <Checkbox
+                  id={"temp1"}
                   className="h-3 w-3"
                   checked={!!selectedThermo["0x60"]}
                   onCheckedChange={(val) =>
@@ -417,7 +419,7 @@ export default function Home() {
                 />
               </div>
               <div className="flex gap-2 items-center">
-                <label htmlFor="temp" className="text-xs text-stratos">
+                <label htmlFor="temp2" className="text-xs text-stratos">
                   T2
                 </label>
                 <Checkbox
@@ -432,10 +434,11 @@ export default function Home() {
                 />
               </div>
               <div className="flex gap-2 items-center">
-                <label htmlFor="temp" className="text-xs text-stratos">
+                <label htmlFor="temp3" className="text-xs text-stratos">
                   T3
                 </label>
                 <Checkbox
+                  id={"temp3"}
                   className="h-3 w-3"
                   checked={!!selectedThermo["0x67"]}
                   onCheckedChange={(val) =>
