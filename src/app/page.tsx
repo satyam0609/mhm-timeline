@@ -13,12 +13,14 @@ import {
   generateTimeSeriesData,
 } from "@/lib/utils/line-chart-data";
 import { useReactNativeBridge } from "@/components/common/reactNativeBridgeProvider";
-import { timeParse } from "d3";
+// import { timeParse } from "d3";
 import { useCallback, useEffect, useState } from "react";
 
 import ZoomableTimelineV2 from "@/components/timelinev2";
 import throttle from "lodash.throttle";
 import { Skeleton } from "@/components/ui/skeleton";
+import { convertToPST } from "@/lib/utils/utils";
+import { timeFormat, timeParse } from "d3";
 
 const blockColors: Record<number, string> = {
   1: "#9999d6",
@@ -77,7 +79,7 @@ export default function Home() {
   const [showTemperature, setShowTemperature] = useState(true);
   const [showHumidity, setShowHumidity] = useState(true);
   const [selectedThermo, setSelectedThermo] = useState<Record<string, boolean>>(
-    {}
+    {},
   );
   const thermoColor = {
     "0x60": COLORS.green,
@@ -137,7 +139,7 @@ export default function Home() {
       const { data: generateData } = generateTimeSeriesData(
         visibleRange.start,
         visibleRange.end,
-        currentInterval
+        currentInterval,
       );
       sendToReactNative("data", {
         visibleRange,
@@ -148,7 +150,9 @@ export default function Home() {
         startTimeLine: visibleRange.start,
       });
       // setLineChartData(generateData);
-      const chartLabels = generateData.map((item) => item.time);
+      const chartLabels = generateData.map((item) =>
+        convertToPST(new Date(item.time)),
+      );
       debouncedMachineAnalysis({
         body: {
           sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
@@ -161,9 +165,12 @@ export default function Home() {
         // sensorId: nativeData.sensorId,
         id: nativeData.sensorId,
         days: nativeData.selectedDays,
-        startDate: visibleRange.start,
-        endDate: visibleRange.end,
-        startTimeLine: visibleRange.start,
+        startDate: convertToPST(visibleRange.start),
+        endDate: convertToPST(visibleRange.end),
+        startTimeLine: convertToPST(visibleRange.start),
+        // startDate: "2026-02-05T20:23:24.000000Z",
+        // endDate: convertToPST(visibleRange.end),
+        // startTimeLine: "2026-02-05T20:23:24.000000Z",
       });
     }
   }, [visibleRange.start, visibleRange.end, currentInterval]);
@@ -175,7 +182,7 @@ export default function Home() {
           acc[key] = true;
           return acc;
         },
-        {} as Record<string, boolean>
+        {} as Record<string, boolean>,
       );
 
       setSelectedThermo(initialState);
@@ -186,7 +193,11 @@ export default function Home() {
     async (body: any) => {
       setIsLoadingSpectrogram(true);
       try {
-        // sendToReactNative("data", body, "------------this is spectrogram body");
+        // sendToReactNative(
+        //   "ack",
+        //   body,
+        //   "------------this is spectrogram body----",
+        // );
 
         const data: any = await getSpectrogram(body);
         // sendToReactNative("data", data, "------------this is spectrogram");
@@ -200,14 +211,14 @@ export default function Home() {
         setIsLoadingSpectrogram(false);
       }
     },
-    [visibleRange]
+    [visibleRange],
   );
 
   const debouncedSpectrogram = useCallback(
     throttle((q) => {
       callGetSpectrogramApi(q);
     }, 350),
-    []
+    [],
   );
 
   const callGetMachineAnalysis = useCallback(
@@ -223,11 +234,6 @@ export default function Home() {
           const humidityData = res.sensorData.humidity;
           const thermoCouple = res?.sensorData?.thermoCouple ?? [];
           const range = data.range;
-          sendToReactNative(
-            "data",
-            thermoCouple,
-            "--------machine analysis thermoCouple data"
-          );
 
           setTemperatureData(tempData);
           setHumidityData(humidityData);
@@ -240,13 +246,13 @@ export default function Home() {
           } = generateTimeSeriesData(
             range.start!,
             range.end!,
-            data.currentInterval
+            data.currentInterval,
           );
 
           const modifiedData = combineTempHumidity(
             tempData,
             humidityData,
-            thermoCouple
+            thermoCouple,
           ).map((item: any, idx: number) => ({
             ...item,
             time: tickData[idx].time,
@@ -260,14 +266,14 @@ export default function Home() {
         setLoadingAnalysis(false);
       }
     },
-    [visibleRange.start, visibleRange.end, currentInterval]
+    [visibleRange.start, visibleRange.end, currentInterval],
   );
 
   const debouncedMachineAnalysis = useCallback(
     throttle((q) => {
       callGetMachineAnalysis(q);
     }, 2000),
-    []
+    [],
   );
 
   const getModifiedTimelineData = (isNormal: boolean, rawData: any[]) => {
@@ -282,7 +288,7 @@ export default function Home() {
     }));
   };
   const [calculatedTimelineData, setCalculatedTimelineData] = useState<any[]>(
-    []
+    [],
   );
   useEffect(() => {
     if (data.length > 0) {
@@ -304,7 +310,7 @@ export default function Home() {
       // 3. Update the mode state (this state is now mostly for the checkboxes/UI)
       setIsNormalSubmode(val);
     },
-    [data] // Depend only on 'data' for the recalculation
+    [data], // Depend only on 'data' for the recalculation
   );
 
   useEffect(() => {
@@ -366,7 +372,82 @@ export default function Home() {
       <div className="pb-8">
         <div className="bg-lavenderMist_50_opacity mx-11 py-8">
           <div className="flex justify-end gap-6.5 mr-4">
-            {thermoTempData.length > 0 &&
+            {/* {thermoTempData.length > 0 &&
+              thermoTempData[0] &&
+              thermoTempData[0]?.value !== "0" && (
+                <div className="h-5 w-px bg-stratos"></div>
+              )} */}
+            <div className="flex gap-2 items-center">
+              <Checkbox
+                className="h-3 w-3"
+                id={"humidity"}
+                checked={showHumidity}
+                onCheckedChange={(val) => setShowHumidity(!!val)}
+              />
+              <label htmlFor={"humidity"} className="text-xs text-stratos">
+                Humidity (%)
+              </label>
+            </div>
+            <div className="h-5 w-px bg-stratos"></div>
+            <div className="flex gap-2 items-center">
+              <span className="text-xs text-stratos">Temperature (°C)</span>
+              <Checkbox
+                className="h-3 w-3"
+                id={"temp"}
+                checked={showTemperature}
+                onCheckedChange={(val) => setShowTemperature(!!val)}
+              />
+              <label htmlFor="temp" className="text-xs text-stratos">
+                Ambient
+              </label>
+
+              <div className="flex gap-2 items-center">
+                <label htmlFor="temp" className="text-xs text-stratos">
+                  T1
+                </label>
+                <Checkbox
+                  className="h-3 w-3"
+                  checked={!!selectedThermo["0x60"]}
+                  onCheckedChange={(val) =>
+                    setSelectedThermo((prev) => ({
+                      ...prev,
+                      ["0x60"]: !!val,
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex gap-2 items-center">
+                <label htmlFor="temp" className="text-xs text-stratos">
+                  T2
+                </label>
+                <Checkbox
+                  className="h-3 w-3"
+                  checked={!!selectedThermo["0x63"]}
+                  onCheckedChange={(val) =>
+                    setSelectedThermo((prev) => ({
+                      ...prev,
+                      ["0x63"]: !!val,
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex gap-2 items-center">
+                <label htmlFor="temp" className="text-xs text-stratos">
+                  T3
+                </label>
+                <Checkbox
+                  className="h-3 w-3"
+                  checked={!!selectedThermo["0x67"]}
+                  onCheckedChange={(val) =>
+                    setSelectedThermo((prev) => ({
+                      ...prev,
+                      ["0x67"]: !!val,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            {/* {thermoTempData.length > 0 &&
               thermoTempData[0] &&
               thermoTempData[0]?.value &&
               thermoTempData[0]?.value !== "0" && (
@@ -391,34 +472,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-              )}
-            {thermoTempData.length > 0 &&
-              thermoTempData[0] &&
-              thermoTempData[0]?.value !== "0" && (
-                <div className="h-5 w-px bg-stratos"></div>
-              )}
-            <div className="flex gap-2 items-center">
-              <Checkbox
-                className="h-3 w-3"
-                id={"humidity"}
-                checked={showHumidity}
-                onCheckedChange={(val) => setShowHumidity(!!val)}
-              />
-              <label htmlFor={"humidity"} className="text-xs text-stratos">
-                Humidity (%)
-              </label>
-            </div>
-            <div className="flex gap-2 items-center">
-              <Checkbox
-                className="h-3 w-3"
-                id={"temp"}
-                checked={showTemperature}
-                onCheckedChange={(val) => setShowTemperature(!!val)}
-              />
-              <label htmlFor="temp" className="text-xs text-stratos">
-                Temperature (°C)
-              </label>
-            </div>
+              )} */}
           </div>
         </div>
 
