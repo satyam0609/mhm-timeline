@@ -70,19 +70,6 @@
   }
 }
 
-/* Remove focus outline and highlight on Recharts SVG container */
-.recharts-wrapper:focus,
-.recharts-surface:focus,
-.recharts-surface:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-/* Also disable the default Chrome highlight (especially on SVG click) */
-.recharts-surface {
-  -webkit-tap-highlight-color: transparent;
-}
-
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -153,8 +140,20 @@
 }
 
 @layer base {
-  * {
+  /* * {
     @apply border-border outline-ring/50;
+  } */
+
+  * {
+    @apply border-border;
+  }
+  /* Only show outline when navigating via keyboard */
+  *:focus-visible {
+    @apply outline-ring/50 outline-2;
+  }
+  /* Hide outline for mouse users globally */
+  *:focus:not(:focus-visible) {
+    outline: none;
   }
   body {
     @apply bg-background text-foreground;
@@ -163,4 +162,29 @@
 
 body {
   font-family: var(--font-inter), sans-serif;
+}
+
+/* Remove focus outline and highlight on Recharts SVG container */
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-surface:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.recharts-responsive-container {
+  outline: none !important;
+}
+.recharts-wrapper:focus:not(:focus-visible) {
+  outline: none;
+}
+.recharts-rectangle:focus,
+.recharts-dot:focus,
+.recharts-sector:focus,
+.recharts-curve:focus {
+  outline: none !important;
+}
+
+/* Also disable the default Chrome highlight (especially on SVG click) */
+.recharts-surface {
+  -webkit-tap-highlight-color: transparent;
 }

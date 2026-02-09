@@ -176,7 +176,7 @@ const CustomTick = ({
   const timestamp = date.getTime();
 
   const visibleTimestamps = visibleLabelTicks?.map((d) =>
-    new Date(d).getTime()
+    new Date(d).getTime(),
   );
 
   const isVisible = visibleTimestamps?.includes(timestamp);
@@ -200,6 +200,78 @@ const CustomTick = ({
   );
 };
 
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+  showTemperature,
+  showHumidity,
+}: any) => {
+  if (!active || !payload?.length) return null;
+
+  const date = new Date(label);
+
+  return (
+    <div
+      style={{
+        backgroundColor: "rgba(255,255,255,0.95)",
+        border: "2px solid #e5e7eb",
+        borderRadius: 8,
+        padding: 12,
+      }}
+    >
+      {/* Label */}
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 600,
+          marginBottom: 6,
+          color: "#374151",
+        }}
+      >
+        {d3.timeFormat("%m/%d/%y")(date)} {formatTime(date)}
+      </div>
+
+      {/* Values */}
+      {payload.map((entry: any) => {
+        const { name, value, color } = entry;
+
+        if (name === "Temperature (°C)" && !showTemperature) return null;
+        if (name === "Humidity (%)" && !showHumidity) return null;
+
+        return (
+          <div
+            key={name}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 13,
+              marginBottom: 4,
+            }}
+          >
+            {/* NAME STYLE */}
+            <span className="text-darkViolet text-[12px]">
+              {`${name.replace(/\s*\(.*?\)/g, "")} : `}
+            </span>
+
+            {/* VALUE STYLE */}
+            <span
+              className="text-[12px]"
+              style={{
+                color,
+              }}
+            >
+              {name.includes("°C") && `${value}°C`}
+              {name.includes("%") && `${value}%`}
+              {!name.includes("°C") && !name.includes("%") && value}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export default function DualAxisChart({
   thermoColor,
   data,
@@ -217,11 +289,12 @@ export default function DualAxisChart({
 }) {
   // console.log(data, "----------chartdata");
   return (
-    <div className="w-full bg-white rounded-2xl -ml-4">
+    <div className="w-full bg-white rounded-2xl -ml-4 shadow-none border-none">
       <ResponsiveContainer width="100%" height={260}>
         <LineChart
           data={data}
           margin={{ top: 0, right: -30, left: 0, bottom: 20 }}
+          accessibilityLayer={false}
         >
           <defs>
             <linearGradient id="chartBg" x1="0" y1="0" x2="0" y2="1">
@@ -317,7 +390,7 @@ export default function DualAxisChart({
             }}
           /> */}
 
-          <Tooltip
+          {/* <Tooltip
             contentStyle={{
               backgroundColor: "rgba(255, 255, 255, 0.95)",
               border: "2px solid #e5e7eb",
@@ -336,11 +409,19 @@ export default function DualAxisChart({
             }}
             labelFormatter={(label) => {
               const date = new Date(label);
-              return `${formatTime(date)} ${d3.timeFormat("%m/%d/%y")(date)}`;
+              return `${d3.timeFormat("%m/%d/%y")(date)} ${formatTime(date)}`;
             }}
             filterNull={true}
-          />
+          /> */}
 
+          <Tooltip
+            content={
+              <CustomTooltip
+                showTemperature={showTemperature}
+                showHumidity={showHumidity}
+              />
+            }
+          />
           <Line
             yAxisId="right"
             type="monotone"
@@ -376,7 +457,8 @@ export default function DualAxisChart({
             stroke={COLORS.green}
             strokeWidth={2}
             activeDot={{ r: 5 }}
-            name="0x60"
+            // name="0x60"
+            name="T1 (°C)"
             connectNulls
             isAnimationActive={false}
             strokeOpacity={selectedThermo["0x60"] ? 1 : 0}
@@ -394,7 +476,8 @@ export default function DualAxisChart({
             stroke={COLORS.darkyellow}
             strokeWidth={2}
             activeDot={{ r: 5 }}
-            name="0x63"
+            // name="0x63"
+            name="T2 (°C)"
             connectNulls
             isAnimationActive={false}
             strokeOpacity={selectedThermo["0x63"] ? 1 : 0}
@@ -412,7 +495,8 @@ export default function DualAxisChart({
             stroke={COLORS.dodgerBlue}
             strokeWidth={2}
             activeDot={{ r: 5 }}
-            name="0x67"
+            // name="0x67"
+            name="T3 (°C)"
             connectNulls
             isAnimationActive={false}
             strokeOpacity={selectedThermo["0x67"] ? 1 : 0}
