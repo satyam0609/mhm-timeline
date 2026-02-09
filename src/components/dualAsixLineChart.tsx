@@ -206,6 +206,7 @@ const CustomTooltip = ({
   label,
   showTemperature,
   showHumidity,
+  selectedThermo,
 }: any) => {
   if (!active || !payload?.length) return null;
 
@@ -238,6 +239,9 @@ const CustomTooltip = ({
 
         if (name === "Temperature (°C)" && !showTemperature) return null;
         if (name === "Humidity (%)" && !showHumidity) return null;
+        if (name === "T1 (°C)" && !selectedThermo["0x60"]) return null;
+        if (name === "T2 (°C)" && !selectedThermo["0x63"]) return null;
+        if (name === "T3 (°C)" && !selectedThermo["0x67"]) return null;
 
         return (
           <div
@@ -419,6 +423,7 @@ export default function DualAxisChart({
               <CustomTooltip
                 showTemperature={showTemperature}
                 showHumidity={showHumidity}
+                selectedThermo={selectedThermo}
               />
             }
           />
