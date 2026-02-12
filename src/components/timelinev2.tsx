@@ -1051,6 +1051,24 @@ const ZoomableTimelineV2 = ({
   }, [isNormalSubMode, data]);
 
   useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const newWidth = entry.contentRect.width;
+
+      updateTimeline(xScaleRef.current);
+    });
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
     if (internalLoading) return;
 
     requestAnimationFrame(() => {

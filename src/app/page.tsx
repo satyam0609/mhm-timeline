@@ -47,6 +47,7 @@ export default function Home() {
   }, [isReady]);
 
   const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(false);
 
   const [domain, setDomain] = useState<{
     startDate: Date | null;
@@ -321,7 +322,7 @@ export default function Home() {
         startDate: nativeData.startDate,
       });
     }
-  }, [nativeData.startDate, nativeData.endDate, nativeData.sensorId]);
+  }, [nativeData.startDate, nativeData.endDate, nativeData.sensorId, refresh]);
 
   return (
     <div className="px-0">
@@ -361,6 +362,7 @@ export default function Home() {
           sendToReactNative("action", null, "openCalendar")
         }
         onReloadClick={() => {
+          setRefresh((prev) => !prev);
           setIsNormalSubmode(true);
           sendToReactNative("action", null, "reset");
         }}
