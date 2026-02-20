@@ -366,6 +366,12 @@ export default function Home() {
           setIsNormalSubmode(true);
           sendToReactNative("action", null, "reset");
         }}
+        onDragStart={() => {
+          sendToReactNative("action", null, "toggleScrollDisable");
+        }}
+        onDragEnd={() => {
+          sendToReactNative("action", null, "toggleScrollEnable");
+        }}
         spectrogram={spectrogram}
         onModeChange={handleModeChange}
         isNormalSubMode={isNormalSubMode}

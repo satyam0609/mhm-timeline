@@ -170,6 +170,8 @@ interface ZoomableTimelineProps {
   isNormalSubMode?: boolean;
   onModeChange?: (mode: boolean) => void;
   loadingSpectrogram?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 const ZoomableTimelineV2 = ({
@@ -190,6 +192,8 @@ const ZoomableTimelineV2 = ({
   loading = true,
   spectrogram,
   loadingSpectrogram,
+  onDragStart,
+  onDragEnd,
 }: ZoomableTimelineProps) => {
   // const { data: nativeData, sendToReactNative } = useReactNativeBridge({});
   const totalDays = useMemo(() => {
@@ -1092,14 +1096,28 @@ const ZoomableTimelineV2 = ({
     }
   }
 
-  const handlePivotStart = (clientX: number) => {
+  const handlePivotStart = (
+    clientX: number,
+    e?: React.TouchEvent | React.MouseEvent,
+  ) => {
+    if (e && "cancelable" in e && e.cancelable) {
+      e.preventDefault();
+    }
+    onDragStart && onDragStart();
     setIsDragging(true);
     setDragStartX(clientX);
     setDragStartPivot(precisePivotRef.current);
   };
 
-  const handlePivotMove = (clientX: number) => {
+  const handlePivotMove = (
+    clientX: number,
+    e?: React.TouchEvent | React.MouseEvent,
+  ) => {
     if (!isDragging || !containerRef.current) return;
+
+    if (e && "cancelable" in e && e.cancelable) {
+      e.preventDefault();
+    }
 
     const deltaX = clientX - dragStartX;
     const maxX = width - marginLeft - marginRight;
@@ -1111,6 +1129,7 @@ const ZoomableTimelineV2 = ({
   };
 
   const handlePivotEnd = () => {
+    onDragEnd && onDragEnd();
     setIsDragging(false);
   };
 
@@ -1152,6 +1171,72 @@ const ZoomableTimelineV2 = ({
 
   const activeConstraint = getActiveConstraint();
   const allowedIntervals = getAllowedIntervals(activeConstraint);
+
+  useEffect(() => {
+    if (isDragging) {
+      // 1. Prevent vertical scroll at the browser level
+      document.body.style.overflow = "hidden";
+
+      document.body.style.touchAction = "none";
+      onDragStart && onDragStart();
+    } else {
+      document.body.style.overflow = "unset";
+      document.body.style.touchAction = "auto";
+      onDragEnd && onDragEnd();
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+      document.body.style.touchAction = "auto";
+    };
+  }, [isDragging]);
+
+  // Add this inside your ZoomableTimelineV2 component
+  useEffect(() => {
+    const handleGlobalEnd = () => {
+      if (isDragging) {
+        handlePivotEnd();
+        // Important: Re-enable native scroll when dragging finishes
+        if (window.ReactNativeWebView) {
+          onDragEnd && onDragEnd();
+        }
+      }
+    };
+
+    if (isDragging) {
+      // Listen globally so we don't miss the 'up' event
+      window.addEventListener("mouseup", handleGlobalEnd);
+      window.addEventListener("touchend", handleGlobalEnd);
+      window.addEventListener("touchcancel", handleGlobalEnd); // Critical for mobile
+    }
+
+    return () => {
+      window.removeEventListener("mouseup", handleGlobalEnd);
+      window.removeEventListener("touchend", handleGlobalEnd);
+      window.removeEventListener("touchcancel", handleGlobalEnd);
+    };
+  }, [isDragging]);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const preventDefault = (e) => {
+      if (isDragging && e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    // Setting passive: false is the "magic" that lets preventDefault work
+    container.addEventListener("touchstart", preventDefault, {
+      passive: false,
+    });
+    container.addEventListener("touchmove", preventDefault, { passive: false });
+
+    return () => {
+      container.removeEventListener("touchstart", preventDefault);
+      container.removeEventListener("touchmove", preventDefault);
+    };
+  }, [isDragging]);
 
   return (
     <div className="flex flex-col items-center overflow-hidden">
@@ -1295,11 +1380,8 @@ const ZoomableTimelineV2 = ({
           <div
             className="bg-white w-full relative"
             ref={containerRef}
-            // onMouseMove={handleMouseMove}
-            // onMouseUp={handleMouseUp}
-            // onMouseLeave={handleMouseUp}
-            onMouseMove={(e) => handlePivotMove(e.clientX)}
-            onTouchMove={(e) => handlePivotMove(e.touches[0].clientX)}
+            onMouseMove={(e) => handlePivotMove(e.clientX, e)}
+            onTouchMove={(e) => handlePivotMove(e.touches[0].clientX, e)}
             onMouseLeave={(e) => handlePivotEnd()}
             style={{ cursor: isDragging ? "grabbing" : "default" }}
           >
@@ -1384,8 +1466,10 @@ const ZoomableTimelineV2 = ({
                 cursor: isDragging ? "grabbing" : "grab",
               }}
               // onMouseDown={handlePivotMouseDown}
-              onMouseDown={(e) => handlePivotStart(e.clientX)}
-              onTouchStart={(e) => handlePivotStart(e.touches[0].clientX)}
+              // onMouseDown={(e) => handlePivotStart(e.clientX)}
+              // onTouchStart={(e) => handlePivotStart(e.touches[0].clientX)}
+              onMouseDown={(e) => handlePivotStart(e.clientX, e)}
+              onTouchStart={(e) => handlePivotStart(e.touches[0].clientX, e)}
             >
               <div className="text-[10px] text-gray-700 whitespace-nowrap flex items-center gap-2 z-[9999]">
                 <span className="text-violet-500">
