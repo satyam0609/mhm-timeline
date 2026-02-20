@@ -1220,7 +1220,7 @@ const ZoomableTimelineV2 = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const preventDefault = (e) => {
+    const preventDefault = (e: any) => {
       if (isDragging && e.cancelable) {
         e.preventDefault();
       }
