@@ -11,7 +11,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const dispatch = useAppDispatch();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { isReady, data } = useReactNativeBridge();
+  const { isReady, data, sendToReactNative } = useReactNativeBridge();
   // const webToken = searchParams.get("token");
   const webToken = data?.token;
 
@@ -30,14 +30,18 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       //   return;
       // }
       if (IGNORED_ROUTES.includes(pathname)) return;
-
+      sendToReactNative(
+        "ack",
+        webToken,
+        "-----------from web webtoken changed",
+      );
       // if (isVerified || token || !webToken) return;
       if (!webToken) return;
-
+      sendToReactNative("ack", webToken, "-----------from web webtoken verify");
       setIsChecking(true);
       try {
         const data = await verifyWebToken(webToken);
-
+        sendToReactNative("ack", data, "-----------from web webtoken response");
         if (data.success) {
           dispatch(setToken(data.token));
         } else {
