@@ -62,6 +62,8 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     verifyToken();
   }, [webToken, router, dispatch]);
 
+  sendToReactNative("ack", { token, isReady }, "-------monitoring");
+
   if (isChecking || !isReady)
     return (
       <div className="flex h-screen items-center justify-center">
@@ -70,12 +72,21 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     );
 
   // If after checking, still no token → do not render
-  if (isReady && !token)
+  if (isReady && !token) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-blue-950 font-semibold">"Access denied"</p>
+      </div>
+    );
+  }
+
+  if (error) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p className="text-blue-950 font-semibold">{error}</p>
       </div>
     );
+  }
 
   return <>{children}</>;
 }
