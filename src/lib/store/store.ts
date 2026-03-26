@@ -10,7 +10,7 @@ const combineReducer = combineReducers({
 const persistConfig = {
   key: "noop-storage",
   storage: storage,
-  whiteList: ["counter"],
+  whiteList: [""],
 };
 
 const persistedReducer = persistReducer(persistConfig, combineReducer);

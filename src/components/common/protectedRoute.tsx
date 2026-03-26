@@ -30,10 +30,9 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       //   return;
       // }
       if (IGNORED_ROUTES.includes(pathname)) return;
-      // ⭐ If already verified or we already have token → allow access
-      if (isVerified || token || !webToken) return;
 
-      // ⭐ If NO web token and user is not verified → block access
+      // if (isVerified || token || !webToken) return;
+      if (!webToken) return;
 
       setIsChecking(true);
       try {
