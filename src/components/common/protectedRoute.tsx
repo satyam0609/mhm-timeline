@@ -12,6 +12,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isReady, data, sendToReactNative } = useReactNativeBridge();
+  const [error, setError] = useState<string | null>(null);
   // const webToken = searchParams.get("token");
   const webToken = data?.token;
 
@@ -45,11 +46,14 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
         if (data.success) {
           dispatch(setToken(data.token));
         } else {
-          router.replace("/not-found");
+          setError(data?.message ?? "Something went wrong");
+          // router.replace("/not-found");
         }
-      } catch (err) {
+      } catch (err: any) {
+        setError(err?.message ? err.message : "Something went wrong");
         dispatch(logout());
-        router.replace("/not-found");
+
+        // router.replace("/not-found");
       } finally {
         setIsChecking(false);
       }
