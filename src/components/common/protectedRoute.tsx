@@ -41,12 +41,12 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       sendToReactNative("ack", webToken, "-----------from web webtoken verify");
       setIsChecking(true);
       try {
-        const data = await verifyWebToken(webToken);
+        const responseData = await verifyWebToken(webToken);
         sendToReactNative("ack", data, "-----------from web webtoken response");
-        if (data.success) {
-          dispatch(setToken(data.token));
+        if (responseData.success) {
+          dispatch(setToken(responseData.token));
         } else {
-          setError(data?.message ?? "Something went wrong");
+          setError(responseData?.message ?? "Something went wrong");
           // router.replace("/not-found");
         }
       } catch (err: any) {
