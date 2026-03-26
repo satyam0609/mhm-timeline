@@ -31,38 +31,30 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       //   return;
       // }
       if (IGNORED_ROUTES.includes(pathname)) return;
-      sendToReactNative(
-        "ack",
-        webToken,
-        "-----------from web webtoken changed",
-      );
+
       // if (isVerified || token || !webToken) return;
       if (!webToken) return;
-      sendToReactNative("ack", webToken, "-----------from web webtoken verify");
+
       setIsChecking(true);
       try {
         const responseData = await verifyWebToken(webToken);
-        sendToReactNative("ack", data, "-----------from web webtoken response");
+
         if (responseData.success) {
           dispatch(setToken(responseData.token));
         } else {
           setError(responseData?.message ?? "Something went wrong");
-          // router.replace("/not-found");
         }
       } catch (err: any) {
         setError(err?.message ? err.message : "Something went wrong");
         dispatch(logout());
-
-        // router.replace("/not-found");
       } finally {
         setIsChecking(false);
       }
     };
 
+    dispatch(logout());
     verifyToken();
-  }, [webToken, router, dispatch]);
-
-  sendToReactNative("ack", { token, isReady }, "-------monitoring");
+  }, [webToken, dispatch]);
 
   if (isChecking || !isReady)
     return (
