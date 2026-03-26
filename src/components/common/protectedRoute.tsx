@@ -73,7 +73,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   if (isReady && !token)
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-blue-950 font-semibold">Unauthorized</p>
+        <p className="text-blue-950 font-semibold">{error}</p>
       </div>
     );
 
