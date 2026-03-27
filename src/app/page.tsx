@@ -103,7 +103,6 @@ export default function Home() {
 
       const data = await getZoomableData(body);
 
-      console.log(data);
       if (data.success) {
         const timelineData = data.data;
 

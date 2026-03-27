@@ -10,9 +10,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import * as d3 from "d3";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
 const formatTime = d3.timeFormat("%I:%M %p"); // e.g., 02:00 AM
-const formatDate = d3.timeFormat("%m/%d");
 
 // const data = [
 //   { time: "00:00", temperature: 18, humidity: 65 },
@@ -175,9 +175,9 @@ const CustomTick = ({
   const date = new Date(payload.value);
   const timestamp = date.getTime();
 
-  const visibleTimestamps = visibleLabelTicks?.map((d) =>
-    new Date(d).getTime(),
-  );
+  const visibleTimestamps = useMemo(() => {
+    return visibleLabelTicks?.map((d) => new Date(d).getTime());
+  }, []);
 
   const isVisible = visibleTimestamps?.includes(timestamp);
 
@@ -291,7 +291,6 @@ export default function DualAxisChart({
   visibleLabelTicks?: any;
   selectedThermo: any;
 }) {
-  // console.log(data, "----------chartdata");
   return (
     <div className="w-full bg-white rounded-2xl -ml-4 shadow-none border-none">
       <ResponsiveContainer width="100%" height={260}>
@@ -456,7 +455,7 @@ export default function DualAxisChart({
           />
 
           <Line
-            yAxisId="left"
+            yAxisId="right"
             type="monotone"
             dataKey="0x60"
             stroke={COLORS.green}
@@ -475,7 +474,7 @@ export default function DualAxisChart({
           />
 
           <Line
-            yAxisId="left"
+            yAxisId="right"
             type="monotone"
             dataKey="0x63"
             stroke={COLORS.darkyellow}
@@ -494,7 +493,7 @@ export default function DualAxisChart({
           />
 
           <Line
-            yAxisId="left"
+            yAxisId="right"
             type="monotone"
             dataKey="0x67"
             stroke={COLORS.dodgerBlue}
