@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import * as d3 from "d3";
 import { useMemo, useState } from "react";
+import { useReactNativeBridge } from "./common/reactNativeBridgeProvider";
 
 const formatTime = d3.timeFormat("%I:%M %p"); // e.g., 02:00 AM
 
@@ -207,6 +208,7 @@ const CustomTooltip = ({
   showTemperature,
   showHumidity,
   selectedThermo,
+  showFahrenheit,
 }: any) => {
   if (!active || !payload?.length) return null;
 
@@ -237,11 +239,13 @@ const CustomTooltip = ({
       {payload.map((entry: any) => {
         const { name, value, color } = entry;
 
-        if (name === "Temperature (°C)" && !showTemperature) return null;
-        if (name === "Humidity (%)" && !showHumidity) return null;
-        if (name === "T1 (°C)" && !selectedThermo["0x60"]) return null;
-        if (name === "T2 (°C)" && !selectedThermo["0x63"]) return null;
-        if (name === "T3 (°C)" && !selectedThermo["0x67"]) return null;
+        const baseName = name.replace(/\s*\(.*?\)/g, "");
+
+        if (baseName === "Temperature" && !showTemperature) return null;
+        if (baseName === "Humidity" && !showHumidity) return null;
+        if (baseName === "T1" && !selectedThermo["0x60"]) return null;
+        if (baseName === "T2" && !selectedThermo["0x63"]) return null;
+        if (baseName === "T3" && !selectedThermo["0x67"]) return null;
 
         return (
           <div
@@ -253,21 +257,14 @@ const CustomTooltip = ({
               marginBottom: 4,
             }}
           >
-            {/* NAME STYLE */}
-            <span className="text-darkViolet text-[12px]">
-              {`${name.replace(/\s*\(.*?\)/g, "")} : `}
-            </span>
+            {/* NAME */}
+            <span className="text-darkViolet text-[12px]">{baseName} :</span>
 
-            {/* VALUE STYLE */}
-            <span
-              className="text-[12px]"
-              style={{
-                color,
-              }}
-            >
-              {name.includes("°C") && `${value}°C`}
+            {/* VALUE */}
+            <span className="text-[12px]" style={{ color }}>
+              {name.includes("°") && `${value}°${showFahrenheit ? "F" : "C"}`}
               {name.includes("%") && `${value}%`}
-              {!name.includes("°C") && !name.includes("%") && value}
+              {!name.includes("°") && !name.includes("%") && value}
             </span>
           </div>
         );
@@ -283,6 +280,7 @@ export default function DualAxisChart({
   showHumidity = true,
   visibleLabelTicks = [],
   selectedThermo,
+  showFahrenheit,
 }: {
   thermoColor: any;
   data: any[];
@@ -290,12 +288,24 @@ export default function DualAxisChart({
   showHumidity?: boolean;
   visibleLabelTicks?: any;
   selectedThermo: any;
+  showFahrenheit: boolean;
 }) {
+  const toFahrenheit = (c: number) => Number(((c * 9) / 5 + 32).toFixed(2));
+
+  const processedData = useMemo(() => {
+    return data.map((d) => ({
+      ...d,
+      temperature: showFahrenheit ? toFahrenheit(d.temperature) : d.temperature,
+      "0x60": showFahrenheit ? toFahrenheit(d["0x60"]) : d["0x60"],
+      "0x63": showFahrenheit ? toFahrenheit(d["0x63"]) : d["0x63"],
+      "0x67": showFahrenheit ? toFahrenheit(d["0x67"]) : d["0x67"],
+    }));
+  }, [data, showFahrenheit]);
   return (
     <div className="w-full bg-white rounded-2xl -ml-4 shadow-none border-none">
       <ResponsiveContainer width="100%" height={260}>
         <LineChart
-          data={data}
+          data={processedData}
           margin={{ top: 0, right: -30, left: 0, bottom: 20 }}
           accessibilityLayer={false}
         >
@@ -350,13 +360,26 @@ export default function DualAxisChart({
             tickSize={10}
           />
 
-          <YAxis
+          {/* <YAxis
             yAxisId="right"
             orientation="right"
             stroke={COLORS.darkViolet}
             tick={{ fontSize: 10 }}
             tickCount={6}
             tickFormatter={(value) => `${value}°C`}
+            domain={[
+              (dataMin) => Math.floor(Math.max(dataMin - 2, 0)),
+              (dataMax) => Math.ceil(dataMax + 2),
+            ]}
+          /> */}
+
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            stroke={COLORS.darkViolet}
+            tick={{ fontSize: 10 }}
+            tickCount={6}
+            tickFormatter={(value) => `${value}°${showFahrenheit ? "F" : "C"}`}
             domain={[
               (dataMin) => Math.floor(Math.max(dataMin - 2, 0)),
               (dataMax) => Math.ceil(dataMax + 2),
@@ -423,6 +446,7 @@ export default function DualAxisChart({
                 showTemperature={showTemperature}
                 showHumidity={showHumidity}
                 selectedThermo={selectedThermo}
+                showFahrenheit={showFahrenheit}
               />
             }
           />
@@ -433,7 +457,8 @@ export default function DualAxisChart({
             stroke={COLORS.lightBlue}
             strokeWidth={2}
             activeDot={{ r: 5 }}
-            name="Temperature (°C)"
+            // name="Temperature (°C)"
+            name={`Temperature (°${showFahrenheit ? "F" : "C"})`}
             connectNulls
             isAnimationActive={false}
             strokeOpacity={showTemperature ? 1 : 0}
@@ -462,7 +487,8 @@ export default function DualAxisChart({
             strokeWidth={2}
             activeDot={{ r: 5 }}
             // name="0x60"
-            name="T1 (°C)"
+            // name="T1 (°C)"
+            name={`T1 (°${showFahrenheit ? "F" : "C"})`}
             connectNulls
             isAnimationActive={false}
             strokeOpacity={selectedThermo["0x60"] ? 1 : 0}
@@ -481,7 +507,8 @@ export default function DualAxisChart({
             strokeWidth={2}
             activeDot={{ r: 5 }}
             // name="0x63"
-            name="T2 (°C)"
+            // name="T2 (°C)"
+            name={`T2 (°${showFahrenheit ? "F" : "C"})`}
             connectNulls
             isAnimationActive={false}
             strokeOpacity={selectedThermo["0x63"] ? 1 : 0}
@@ -500,7 +527,8 @@ export default function DualAxisChart({
             strokeWidth={2}
             activeDot={{ r: 5 }}
             // name="0x67"
-            name="T3 (°C)"
+            // name="T3 (°C)"
+            name={`T3 (°${showFahrenheit ? "F" : "C"})`}
             connectNulls
             isAnimationActive={false}
             strokeOpacity={selectedThermo["0x67"] ? 1 : 0}

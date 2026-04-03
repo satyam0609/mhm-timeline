@@ -5,6 +5,7 @@ import { logout, setToken } from "@/lib/store/slices/auth-slice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks/useRedux";
 import { verifyWebToken } from "@/lib/apis/machine";
 import { useReactNativeBridge } from "./reactNativeBridgeProvider";
+import { Button } from "../ui/button";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -68,6 +69,13 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p className="text-blue-950 font-semibold">"Access denied"</p>
+        <Button
+          onClick={() => {
+            sendToReactNative("action", null, "refresh");
+          }}
+        >
+          Reload
+        </Button>
       </div>
     );
   }
@@ -76,6 +84,11 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p className="text-blue-950 font-semibold">{error}</p>
+        <Button
+          onClick={() => {
+            sendToReactNative("action", null, "refresh");
+          }}
+        ></Button>
       </div>
     );
   }

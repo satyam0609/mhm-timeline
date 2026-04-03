@@ -21,6 +21,7 @@ import throttle from "lodash.throttle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { convertToPST } from "@/lib/utils/utils";
 import { timeFormat, timeParse } from "d3";
+import { Switch } from "@/components/ui/switch";
 
 const blockColors: Record<number, string> = {
   1: "#9999d6",
@@ -48,6 +49,7 @@ export default function Home() {
 
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(false);
+  const [isFahrenheit, setIsFahrenheit] = useState(false);
 
   const [domain, setDomain] = useState<{
     startDate: Date | null;
@@ -226,7 +228,6 @@ export default function Home() {
       setLineChartData([]);
       try {
         setLoadingAnalysis(true);
-        // sendToReactNative("data", data, "--------machine analysis body");
 
         const res: any = await getMachineAnalysisData(data.body);
         if (res.success) {
@@ -456,6 +457,18 @@ export default function Home() {
                   }
                 />
               </div>
+              <div className="h-5 w-px bg-stratos"></div>
+
+              <div className="flex gap-1 items-center">
+                <span>°C</span>
+                <Switch
+                  checked={isFahrenheit}
+                  onCheckedChange={(checked) => {
+                    setIsFahrenheit(checked);
+                  }}
+                />
+                <span>°F</span>
+              </div>
             </div>
             {/* {thermoTempData.length > 0 &&
               thermoTempData[0] &&
@@ -499,6 +512,7 @@ export default function Home() {
               selectedThermo={selectedThermo}
               data={lineChartData}
               visibleLabelTicks={visibleTicks as any}
+              showFahrenheit={isFahrenheit}
             />
           )}
         </div>
