@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  app:
+    container_name: mhm_timeline
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    command:
+      - "http"
+      - "http://app:3000"
+      - "--domain=${NEXT_PUBLIC_NGROK_HOSTNAME}"
+    environment:
+      NGROK_AUTHTOKEN: ${NEXT_PUBLIC_NGROK_AUTH_TOKEN}
+    ports:
+      - 4040:4040
