@@ -460,14 +460,14 @@ export default function Home() {
               <div className="h-5 w-px bg-stratos"></div>
 
               <div className="flex gap-1 items-center">
-                <span>°C</span>
+                <span className="text-xs text-stratos">°C</span>
                 <Switch
                   checked={isFahrenheit}
                   onCheckedChange={(checked) => {
                     setIsFahrenheit(checked);
                   }}
                 />
-                <span>°F</span>
+                <span className="text-xs text-stratos">°F</span>
               </div>
             </div>
             {/* {thermoTempData.length > 0 &&

@@ -379,7 +379,8 @@ export default function DualAxisChart({
             stroke={COLORS.darkViolet}
             tick={{ fontSize: 10 }}
             tickCount={6}
-            tickFormatter={(value) => `${value}°${showFahrenheit ? "F" : "C"}`}
+            // tickFormatter={(value) => `${value}°${showFahrenheit ? "F" : "C"}`}
+            tickFormatter={(value) => `${value}`}
             domain={[
               (dataMin) => Math.floor(Math.max(dataMin - 2, 0)),
               (dataMax) => Math.ceil(dataMax + 2),
