@@ -97,15 +97,36 @@ export default function Home() {
   const [thermoTempData, setThermoTempData] = useState<any>([]);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
 
-  const parseDate = timeParse("%d/%m/%Y - %I:%M:%S %p");
+  const parsers = [
+    timeParse("%d/%m/%Y - %I:%M:%S %p"), // 18/06/2026 - 04:07:00 AM
+    timeParse("%d/%m/%Y - %I:%M %p"), // 18/06/2026 - 4:07 AM
+    timeParse("%d/%m/%Y - %H:%M:%S"), // 18/06/2026 - 16:07:00
+    timeParse("%d/%m/%Y - %H:%M"), // 18/06/2026 - 16:07
+  ];
+
+  // const parseDate = timeParse("%d/%m/%Y - %I:%M:%S %p");
   // const parseDate = timeParse("%d/%m/%Y - %I:%M %p");
+  const parseDate = (value?: string) => {
+    if (!value) return null;
+
+    for (const parser of parsers) {
+      const result = parser(value);
+      if (result) return result;
+    }
+
+    return null;
+  };
 
   const getTimelineData = async (body: any) => {
     try {
       setLoading(true);
 
       const data = await getZoomableData(body);
-      sendToReactNative("ack", body, "----body in web");
+      sendToReactNative(
+        "ack",
+        { body, data: JSON.stringify(data) },
+        "----body in web",
+      );
 
       if (data.success) {
         const timelineData = data.data;
