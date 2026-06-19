@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from "@/lib/hooks/useRedux";
 import { verifyWebToken } from "@/lib/apis/machine";
 import { useReactNativeBridge } from "./reactNativeBridgeProvider";
 import { Button } from "../ui/button";
+import { WifiOff } from "lucide-react";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -68,7 +69,12 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   if (isReady && !token) {
     return (
       <div className="flex flex-col gap-2 h-screen items-center justify-center">
-        <p className="text-blue-950 font-semibold">"Access denied"</p>
+        {error ? (
+          <p className="text-blue-950 font-semibold">{error}</p>
+        ) : (
+          <p className="text-blue-950 font-semibold">"Access denied"</p>
+        )}
+
         <Button
           onClick={() => {
             sendToReactNative("action", null, "refresh");
@@ -83,12 +89,19 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   if (error) {
     return (
       <div className="flex flex-col gap-2 h-screen items-center justify-center">
-        <p className="text-blue-950 font-semibold">{error}</p>
+        <div className="flex flex-col gap-2 justify-center items-center">
+          <WifiOff className="text-blue-950" size={28} />
+          <p className="text-blue-950 font-semibold">{error}</p>
+        </div>
         <Button
           onClick={() => {
             sendToReactNative("action", null, "refresh");
           }}
-        ></Button>
+          className="px-4 py-2"
+          variant={"outline"}
+        >
+          Try again
+        </Button>
       </div>
     );
   }

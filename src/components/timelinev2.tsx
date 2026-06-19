@@ -25,6 +25,7 @@ import {
 import { Checkbox } from "./ui/checkbox";
 import { Skeleton } from "./ui/skeleton";
 import Image from "next/image";
+import { useReactNativeBridge } from "./common/reactNativeBridgeProvider";
 
 type IntervalConfig = {
   key: string;
@@ -187,15 +188,12 @@ const ZoomableTimelineV2 = ({
   data = [],
   startDate,
   endDate,
-  //    startDate = new Date("2025-09-01T23:00:00.000Z"),
-  //   endDate = new Date("2026-09-29T05:59:00.000Z"),
   loading = true,
   spectrogram,
   loadingSpectrogram,
   onDragStart,
   onDragEnd,
 }: ZoomableTimelineProps) => {
-  // const { data: nativeData, sendToReactNative } = useReactNativeBridge({});
   const totalDays = useMemo(() => {
     if (!startDate || !endDate) return 0;
     const totalMs = endDate.getTime() - startDate.getTime();
@@ -217,6 +215,7 @@ const ZoomableTimelineV2 = ({
     animateInitialRender = true,
     minTickGap = 90,
   } = timelineConfig;
+  const dataRef = useRef(data);
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<any>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -225,7 +224,6 @@ const ZoomableTimelineV2 = ({
   const { width: primaryWidth } = useResizeObserver(containerRef);
   const { width: fallbackWidth } = useResizeObserver(initialWidthRef);
   const width = primaryWidth !== 0 ? primaryWidth : fallbackWidth;
-  const [colorBlocks, setColorBlocks] = useState<any[]>([]);
   const [selectedInterval, setSelectedInterval] = useState("");
   const [zoomInfo, setZoomInfo] = useState({
     current: "",
@@ -268,6 +266,7 @@ const ZoomableTimelineV2 = ({
   const isProgrammaticZoomRef = useRef(false);
   const isZoomingRef = useRef<"in" | "out">("in");
   const targetKey = useRef<string | null>(null);
+  const isScrollingRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!loading) {
@@ -339,8 +338,8 @@ const ZoomableTimelineV2 = ({
   };
 
   useEffect(() => {
-    // setColorBlocks(generateColorBlocks());
-    setColorBlocks(data);
+    dataRef.current = data;
+    updateTimeline(xScaleRef.current, dataRef.current);
   }, [data]);
 
   // FIXED: Use constant MIN_PX_PER_TICK instead of dynamic calculation
@@ -913,7 +912,7 @@ const ZoomableTimelineV2 = ({
         isAtMaxZoom,
       });
 
-      updateTimeline(xz);
+      updateTimeline(xz, dataRef.current);
       updatePivotDateFromScale(pivotPositionRef.current);
     }
 
@@ -1008,9 +1007,9 @@ const ZoomableTimelineV2 = ({
 
     applyInitialZoom();
 
-    updateTimeline(x);
+    updateTimeline(x, dataRef.current);
   };
-  function updateTimeline(scale: any) {
+  function updateTimeline(scale: any, colorBlocks: any) {
     if (!timelineRef.current) return;
 
     timelineRef.current.innerHTML = "";
@@ -1021,7 +1020,7 @@ const ZoomableTimelineV2 = ({
     const minVisible = new Date(visibleDomain[0].getTime() - bufferMs);
     const maxVisible = new Date(visibleDomain[1].getTime() + bufferMs);
 
-    colorBlocks.forEach((block) => {
+    colorBlocks.forEach((block: any) => {
       if (block.end < minVisible || block.start > maxVisible) {
         return;
       }
@@ -1045,14 +1044,14 @@ const ZoomableTimelineV2 = ({
     });
   }
 
-  useEffect(() => {
-    // sendToReactNative(
-    //   "data",
-    //   { data: "Updating the timeline mode", mode: isNormalSubMode },
-    //   null
-    // );
-    updateTimeline(xScaleRef.current);
-  }, [isNormalSubMode, data]);
+  // useEffect(() => {
+  //   // sendToReactNative(
+  //   //   "data",
+  //   //   { data: "Updating the timeline mode", mode: isNormalSubMode },
+  //   //   null
+  //   // );
+  //   updateTimeline(xScaleRef.current);
+  // }, [colorBlocks]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -1062,7 +1061,7 @@ const ZoomableTimelineV2 = ({
       const entry = entries[0];
       const newWidth = entry.contentRect.width;
 
-      updateTimeline(xScaleRef.current);
+      updateTimeline(xScaleRef.current, data);
     });
 
     observer.observe(element);
@@ -1077,7 +1076,8 @@ const ZoomableTimelineV2 = ({
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        if (!svgRef.current || colorBlocks.length === 0 || width === 0) return;
+        if (!svgRef.current || dataRef.current.length === 0 || width === 0)
+          return;
 
         runD3TimelineRender();
       });
@@ -1166,8 +1166,6 @@ const ZoomableTimelineV2 = ({
         isScrollingRef.current = false;
       });
   };
-
-  const isScrollingRef = useRef<boolean>(false);
 
   const activeConstraint = getActiveConstraint();
   const allowedIntervals = getAllowedIntervals(activeConstraint);

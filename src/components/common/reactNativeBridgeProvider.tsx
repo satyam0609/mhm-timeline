@@ -89,6 +89,11 @@ export function ReactNativeBridgeProvider({
 
         console.log("📥 Received from RN:", { type, action });
 
+        if (type === "ack") {
+          console.log("ACK received");
+          return; // DO NOT ACK AGAIN
+        }
+
         // 🟢 TOKEN / INIT
         if (type === "token" && payload) {
           sendToReactNative("ack", { status: "success", type: "token" });

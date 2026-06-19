@@ -14,7 +14,7 @@ import {
 } from "@/lib/utils/line-chart-data";
 import { useReactNativeBridge } from "@/components/common/reactNativeBridgeProvider";
 // import { timeParse } from "d3";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import ZoomableTimelineV2 from "@/components/timelinev2";
 import throttle from "lodash.throttle";
@@ -97,13 +97,15 @@ export default function Home() {
   const [thermoTempData, setThermoTempData] = useState<any>([]);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
 
-  const parseDate = timeParse("%d/%m/%Y - %I:%M %p");
+  const parseDate = timeParse("%d/%m/%Y - %I:%M:%S %p");
+  // const parseDate = timeParse("%d/%m/%Y - %I:%M %p");
 
   const getTimelineData = async (body: any) => {
     try {
       setLoading(true);
 
       const data = await getZoomableData(body);
+      sendToReactNative("ack", body, "----body in web");
 
       if (data.success) {
         const timelineData = data.data;
@@ -113,15 +115,6 @@ export default function Home() {
           endDate: parseDate(timelineData[timelineData.length - 1]?.to)!,
         });
         setData(timelineData);
-
-        // sendToReactNative(
-        //   "data",
-        //   {
-        //     from: parseDate(timlineData[0]?.from)!,
-        //     to: parseDate(timlineData[timlineData.length - 1]?.to)!,
-        //   },
-        //   "-----------from web"
-        // );
       }
     } catch (err) {
     } finally {
@@ -133,7 +126,12 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (currentInterval && visibleRange.start && visibleRange.end) {
+    if (
+      currentInterval &&
+      visibleRange.start &&
+      visibleRange.end &&
+      nativeData.sensorId
+    ) {
       // sendToReactNative("data", null, "----------------called the chart data");
       setLoadingAnalysis(true);
       setIsLoadingSpectrogram(true);
@@ -143,21 +141,21 @@ export default function Home() {
         visibleRange.end,
         currentInterval,
       );
-      sendToReactNative("data", {
-        visibleRange,
-        id: nativeData.sensorId,
-        days: nativeData.selectedDays,
-        startDate: visibleRange.start,
-        endDate: visibleRange.end,
-        startTimeLine: visibleRange.start,
-      });
+      // sendToReactNative("data", {
+      //   visibleRange,
+      //   id: nativeData.sensorId,
+      //   days: nativeData.selectedDays,
+      //   startDate: visibleRange.start,
+      //   endDate: visibleRange.end,
+      //   startTimeLine: visibleRange.start,
+      // });
       // setLineChartData(generateData);
       const chartLabels = generateData.map((item) =>
         convertToPST(new Date(item.time)),
       );
       debouncedMachineAnalysis({
         body: {
-          sensorId: nativeData.sensorId ?? "67b4459f21a7961649312abc",
+          sensorId: nativeData.sensorId ?? "",
           timeSlots: chartLabels,
         },
         range: visibleRange,
@@ -178,7 +176,7 @@ export default function Home() {
   }, [visibleRange.start, visibleRange.end, currentInterval]);
 
   useEffect(() => {
-    if (thermoTempData.lenngth > 0) {
+    if (thermoTempData.length > 0) {
       const initialState = Object.keys(thermoTempData[0]?.value).reduce(
         (acc, key) => {
           acc[key] = true;
@@ -288,6 +286,7 @@ export default function Home() {
       color: getColor(item.color),
     }));
   };
+
   const [calculatedTimelineData, setCalculatedTimelineData] = useState<any[]>(
     [],
   );
@@ -300,9 +299,12 @@ export default function Home() {
     }
   }, [data, isNormalSubMode]);
 
+  // sendToReactNative("ack", { calculatedTimelineData });
+
   const handleModeChange = useCallback(
     (val: boolean) => {
       // 1. Immediately calculate the new data using the 'val' (new state)
+      sendToReactNative("ack", val, "==========mode change===========");
       const newData = getModifiedTimelineData(val, data);
 
       // 2. Update the timeline data state immediately
@@ -311,18 +313,29 @@ export default function Home() {
       // 3. Update the mode state (this state is now mostly for the checkboxes/UI)
       setIsNormalSubmode(val);
     },
-    [data], // Depend only on 'data' for the recalculation
+    [data, isNormalSubMode], // Depend only on 'data' for the recalculation
   );
 
+  const effectCount = useRef(0);
+
   useEffect(() => {
+    effectCount.current += 1;
+
+    sendToReactNative("ack", `useEffect called ${effectCount.current} times`);
+
     if (nativeData.sensorId) {
+      sendToReactNative(
+        "ack",
+        `calling get timeline data (${effectCount.current})`,
+      );
+
       getTimelineData({
-        endDate: nativeData.endDate,
-        sensorId: nativeData.sensorId,
-        startDate: nativeData.startDate,
+        endDate: nativeData?.endDate,
+        sensorId: nativeData?.sensorId,
+        startDate: nativeData?.startDate,
       });
     }
-  }, [nativeData.startDate, nativeData.endDate, nativeData.sensorId, refresh]);
+  }, [nativeData, refresh]);
 
   return (
     <div className="px-0">
@@ -463,7 +476,7 @@ export default function Home() {
                 <span className="text-xs text-stratos">°C</span>
                 <Switch
                   checked={isFahrenheit}
-                  onCheckedChange={(checked) => {
+                  onCheckedChange={(checked: any) => {
                     setIsFahrenheit(checked);
                   }}
                 />
